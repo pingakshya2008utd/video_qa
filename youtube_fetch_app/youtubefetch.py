@@ -11,21 +11,22 @@ from youtube_player import download_video, extract_audio, play_audio_video
 import moviepy as mp
 from time import time, sleep
 import queue
+from gtts import gTTS
 
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class SpeechManager:
-    def __init__(self):
+    def __init__(self, socketio=None):
         self.engine = None
-        self.should_stop = False
+        self.should_stop = threading.Event()
+        self.socketio = socketio
         
     def initialize_engine(self):
         self.engine = pyttsx3.init()
-        self.should_stop = False
+        self.should_stop.clear()
         
     def stop_speech(self):
-        self.should_stop = True
+        self.should_stop.set()
         if self.engine:
             self.engine.stop()
 
@@ -81,80 +82,90 @@ def listen_for_stop():
             print("Listening for 'ok' to stop...")
             audio = recognizer.listen(source, timeout=None, phrase_time_limit=2)
             text = recognizer.recognize_google(audio).lower()
-            if text == "i got it":
+            print(f"-----text-------: {text}")
+            if text == "you are awesome":
                 return True
+            return False
         except:
             return False
-        
-def run_speech_thread(sentences, engine, stop_queue):
-    """
-    Thread function to handle text-to-speech.
-    """
-    try:
-        for sentence in sentences:
-            if not sentence.strip():  # Skip empty sentences
-                continue
-                
-            # Check if stop was requested
-            try:
-                if stop_queue.get_nowait():
-                    print("\nStopping speech...")
-                    return
-            except queue.Empty:
-                pass
-            
-            # Speak the sentence
-            engine.say(sentence)
-            engine.runAndWait()
-    finally:
-        engine.stop()
 
 
-def run_listener_thread(speech_manager):
+def run_listener_thread(speech_manager, socketio):
     """
     Thread function to listen for stop command.
     """
     
-    while not speech_manager.should_stop:
-        if listen_for_stop():
+    while not speech_manager.should_stop.is_set():
+        stop_requested = listen_for_stop()
+        if stop_requested:
+            print("Stop command received...")
+            speech_manager.should_stop .set() # Set the flag to True
             speech_manager.stop_speech()
+            socketio.emit('speech_stopped')
             break
+        # Small sleep to prevent CPU overuse
+        sleep(0.1)
 
 
-def speak_text(text):
+def speak_text(text, socketio):
     """
     Main function to handle text-to-speech with interrupt capability.
     Can be stopped by saying 'ok'.
     """
     # Initialize speech manager
-    speech_manager = SpeechManager()
+    print("speaking text")
+    speech_manager = SpeechManager(socketio)
     speech_manager.initialize_engine()
     
     # Start listener thread first
     listener_thread = threading.Thread(
         target=run_listener_thread,
-        args=(speech_manager,),
+        args=(speech_manager,socketio),
         daemon=True  # Set as daemon thread before starting
     )
     listener_thread.start()
     
     # Split text and speak
-    sentences = text.split('.')
+    print("text: ", text)
+    #sentences = text.split('.')
     try:
+        sentences = text.split('.')
+        print("sentences length: ", len(sentences))
         for sentence in sentences:
-            if speech_manager.should_stop:
+            sentence = sentence.strip()  # Remove whitespace
+            if not sentence:  # Skip empty sentences
+                continue
+            print("current sentence: ", sentence)
+            print("speech manager: ", speech_manager.should_stop.is_set())
+            
+            if speech_manager.should_stop.is_set():
+                print("Speech interrupted")
+                socketio.emit('speech_interrupted')
                 break
-                
-            if sentence.strip():  # Skip empty sentences
-                speech_manager.engine.say(sentence)
-                speech_manager.engine.runAndWait()
-                
-                if speech_manager.should_stop:
-                    break
-    except:
-        pass
+
+            try:
+                tts = gTTS(text=sentence, lang='en')
+                tts.save("speech.mp3")
+                os.system("afplay speech.mp3")
+                #speech_manager.engine.say(sentence)
+                #speech_manager.engine.runAndWait()
+                socketio.emit('speech_progress', {'sentence': sentence})
+                sleep(0.3)  # Small pause between sentences
+            except Exception as e:
+                print(f"Error speaking sentence: {e}")
+                socketio.emit('speech_error', {'error': str(e), 'sentence': sentence})
+                continue
+            
+               
+                          
+    except Exception as e:
+        print(f"Exception in speak_text: {e}")
+        socketio.emit('speech_error', {'error': str(e)})
     finally:
+        print("exiting speak_text function") 
         speech_manager.stop_speech()
+        listener_thread.join(timeout=1)
+        socketio.emit('speech_completed')
         
     return
     
@@ -175,68 +186,34 @@ def get_voice_input():
             print(f"Could not request results from the speech recognition service; {e}")
             return None
         
-def handle_qa_session(transcript):
+def handle_qa_session(transcript, socketio):
     """
     Handles the question-answer session when video is paused.
     Returns True if user wants to exit Q&A mode, False to quit program.
     """
     print("\nVideo paused. You can ask questions based on the transcript.")
     print("Say 'exit' to return to video, or 'quit' to end program.")
-    
-    '''
-    print("\nListening for your question...")
-    question = get_voice_input()
-    answer = ask_gpt4(transcript, question)
-    print(f"\nAnswer: {answer}")
-    speak_text(answer)
-    '''
-
-
-    
+     
     while True:
         print("\nListening for your question...")
         question = get_voice_input()
         
         if question.lower() == 'exit':
+            socketio.emit('qa_exit')
             return True
         if question.lower() == 'stop':
+            socketio.emit('qa_stop')
             return False
             
         print(f"You asked: {question}")
         print("Processing...")
+        socketio.emit('processing_question', {'question': question})
         answer = ask_gpt4(transcript, question)
-        print(f"\nAnswer: {answer}")
-        speak_text(answer)
-    
+        socketio.emit('answer_ready', {'answer': answer})
+        speak_text(answer, socketio)
+        print("inside handle_qa_session end")
 
 
-def question_answer_loop(is_paused, transcript):
-    """
-    Handles the question-answer interaction.
-    Pauses the video playback and waits for user input until resumed.
-    """
-    printed_message = False  # Flag to ensure message is printed only once
-    print("is_paused.is_set() before", is_paused.is_set())
-    while True:
-        if is_paused.is_set():  # Video is playing
-            printed_message = False
-            continue
-
-        
-
-        if not printed_message:
-            print("\nVideo paused. You can ask questions based on the transcript.")
-            printed_message = True  # Ensure message is printed only once
-        
-        question = get_voice_input()
-        if question.lower() == "exit":
-            is_paused.set()  # Resume playback
-            continue
-
-        answer = ask_gpt4(transcript, question)
-        print(f"\nAnswer: {answer}")
-        speak_text(answer)
-        
 
 def play_video_with_questions(video_path, transcript):
     """
