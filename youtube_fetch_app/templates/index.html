@@ -3,41 +3,7 @@
 <head>
     <title>Video Player with Q&A</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
-    <style>
-        .container {
-            max-width: 1000px;
-            margin: 20px auto;
-            padding: 20px;
-        }
-        .url-input {
-            width: 300px;
-            padding: 8px;
-            margin-right: 10px;
-        }
-        #videoCanvas {
-            border: 1px solid #ccc;
-            margin: 20px 0;
-            background: #f0f0f0;
-        }
-        .button {
-            padding: 8px 15px;
-            margin: 5px;
-            cursor: pointer;
-            background: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 4px;
-        }
-        .button:hover {
-            background: #45a049;
-        }
-        #debugInfo {
-            margin-top: 20px;
-            padding: 10px;
-            background: #f8f8f8;
-            border: 1px solid #ddd;
-        }
-    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
 </head>
 <body>
     <div class="container">
@@ -46,126 +12,22 @@
                    id="youtubeUrl" 
                    class="url-input" 
                    placeholder="Enter YouTube URL">
-            <button onclick="submitUrl()" class="button">Load Video</button>
+            <button id="loadButton" class="button">Load Video</button>
         </div>
 
         <div id="videoControls" style="display: none;">
-            <canvas id="videoCanvas" width="800" height="600"></canvas>
+            <video id="videoPlayer" controls>
+                Your browser does not support the video element.
+            </video>
             <div>
-                <button onclick="startVideo()" class="button">Play</button>
-                <button onclick="pauseVideo()" class="button">Pause/Q&A</button>
+                <button id="qaButton" class="button">Start Q&A</button>
             </div>
         </div>
 
-        <div id="debugInfo"></div>
+        <div id="status" class="status-box"></div>
+        <div id="debugInfo" class="debug-box"></div>
     </div>
 
-    <script>
-        let socket = io();
-        let videoCanvas;
-        let ctx;
-        let debugDiv;
-        
-        function addDebugMessage(message) {
-            const timestamp = new Date().toLocaleTimeString();
-            debugDiv.innerHTML += `<div>[${timestamp}] ${message}</div>`;
-            debugDiv.scrollTop = debugDiv.scrollHeight;
-        }
-
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log("Page loaded");
-            videoCanvas = document.getElementById('videoCanvas');
-            ctx = videoCanvas.getContext('2d');
-            debugDiv = document.getElementById('debugInfo');
-
-            addDebugMessage("Page initialized");
-
-            socket.on('connect', function() {
-                console.log('WebSocket connected');
-                addDebugMessage("WebSocket connected");
-            });
-
-            socket.on('disconnect', function() {
-                console.log('WebSocket disconnected');
-                addDebugMessage("WebSocket disconnected");
-            });
-
-            socket.on('video_frame', function(data) {
-                console.log('Received video frame');
-                try {
-                    const frame = new ImageData(
-                        new Uint8ClampedArray(data.frame),
-                        data.width,
-                        data.height
-                    );
-                    videoCanvas.width = data.width;
-                    videoCanvas.height = data.height;
-                    ctx.putImageData(frame, 0, 0);
-        
-                } catch (error) {
-                    console.error('Error displaying frame:', error);
-                    addDebugMessage(`Error displaying frame: ${error.message}`);
-                }
-            });
-
-            socket.on('qa_result', function(data) {
-                console.log('Received QA result:', data);
-                addDebugMessage(`QA Result received: ${JSON.stringify(data)}`);
-                if (data.continue) {
-                    socket.emit('resume_video');
-                    addDebugMessage("Video resumed after Q&A");
-                }
-            });
-        });
-
-        function startVideo() {
-            console.log('Start video button clicked');
-            addDebugMessage("Starting video");
-            socket.emit('start_video');
-        }
-
-        function pauseVideo() {
-            console.log('Pause video button clicked');
-            addDebugMessage("Pausing video for Q&A");
-            socket.emit('pause_video');
-        }
-
-        function submitUrl() {
-            const url = document.getElementById('youtubeUrl').value;
-            console.log('Submitting URL:', url);
-            addDebugMessage(`Processing URL: ${url}`);
-
-            fetch('/process_url', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `url=${encodeURIComponent(url)}`
-            })
-            .then(response => response.json())
-            .then(data => {
-                console.log('URL submission response:', data);
-                if (data.status === 'success') {
-                    document.getElementById('videoControls').style.display = 'block';
-                    addDebugMessage("Video loaded successfully");
-                } else {
-                    addDebugMessage(`Error: ${data.message}`);
-                    console.error('Error:', data.message);
-                }
-            })
-            .catch(error => {
-                addDebugMessage(`Error submitting URL: ${error.message}`);
-                console.error('Error submitting URL:', error);
-            });
-        }
-
-        // Handle keyboard events
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'p') {
-                addDebugMessage("'P' key pressed - toggling pause");
-                pauseVideo();
-            }
-        });
-    </script>
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
