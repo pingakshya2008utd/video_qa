@@ -12,8 +12,17 @@ import moviepy as mp
 from time import time, sleep
 import queue
 from gtts import gTTS
+import base64
+import timeout_decorator
+from flask import Flask, render_template, request, jsonify, send_file
+from flask_socketio import SocketIO, emit
+
+app = Flask(__name__)
+socketio = SocketIO(app)
 
 
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 class SpeechManager:
     def __init__(self, socketio=None):
@@ -146,7 +155,21 @@ def speak_text(text, socketio):
             try:
                 tts = gTTS(text=sentence, lang='en')
                 tts.save("speech.mp3")
-                os.system("afplay speech.mp3")
+               # os.system("afplay speech.mp3")
+
+
+            
+                with open("speech.mp3", "rb") as mp3_file:
+                    mp3_data = base64.b64encode(mp3_file.read()).decode('utf-8')
+                
+                # Send MP3 data to client
+                '''
+                socketio.emit('play_speech', {
+                    'audio': mp3_data,
+                    'sentence': sentence
+                })
+                '''
+                
                 #speech_manager.engine.say(sentence)
                 #speech_manager.engine.runAndWait()
                 socketio.emit('speech_progress', {'sentence': sentence})
@@ -168,6 +191,10 @@ def speak_text(text, socketio):
         socketio.emit('speech_completed')
         
     return
+
+@timeout_decorator.timeout(5, use_signals=False)
+def get_voice_input_with_timeout():
+    return get_voice_input()
     
 def get_voice_input():
     recognizer = sr.Recognizer()
@@ -185,8 +212,99 @@ def get_voice_input():
         except sr.RequestError as e:
             print(f"Could not request results from the speech recognition service; {e}")
             return None
+
+
+
+qa_session_state = {
+    'active': False,
+    'transcript': None
+}
+
+client_states = {}
+
+@socketio.on('connect')
+def handle_connect():
+    client_id = request.sid  # Get unique session ID for this client
+    client_states[client_id] = {
+        'qa_active': False,
+        'transcript': None
+    }
+    print(f"Client {client_id} connected")
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    client_id = request.sid
+    if client_id in client_states:
+        del client_states[client_id]
+    print(f"Client {client_id} disconnected")
+
+@socketio.on('submit_question')
+def handle_submit_question(data):
+    """
+    Global handler for submitted questions
+    """
+    if not qa_session_state['active']:
+        return
         
+    print("Received question data:", data)
+    question = data.get('question', '').lower()
+    print(f"Processing question: {question}")
+    
+    try:
+        if question == 'exit':
+            qa_session_state['active'] = False
+            socketio.emit('qa_exit')
+            return
+            
+        if question == 'stop':
+            qa_session_state['active'] = False
+            socketio.emit('qa_stop')
+            return
+            
+        socketio.emit('processing_question', {'question': question})
+        answer = ask_gpt4(qa_session_state['transcript'], question)
+        if answer:
+            socketio.emit('answer_ready', {
+                'answer': answer,
+                'question': question
+            })
+            speak_text(answer, socketio)
+        else:
+            socketio.emit('qa_error', {
+                'error': 'Could not generate answer'
+            })
+    except Exception as e:
+        print(f"Error processing question: {e}")
+        socketio.emit('qa_error', {
+            'error': str(e)
+        })
+
 def handle_qa_session(transcript, socketio):
+    """
+    Handles Q&A session initialization
+    """
+    qa_session_state['active'] = True
+    qa_session_state['transcript'] = transcript
+    
+    @socketio.on('qa_start')
+    def on_qa_start():
+        qa_session_state['active'] = True
+        print("Q&A session started")
+        socketio.emit('qa_mode_active')
+
+    @socketio.on('qa_end')
+    def on_qa_end():
+        qa_session_state['active'] = False
+        print("Q&A session ended")
+        socketio.emit('qa_mode_inactive')
+
+    return True
+
+
+
+
+
+def handle_qa_session111(transcript, socketio):
     """
     Handles the question-answer session when video is paused.
     Returns True if user wants to exit Q&A mode, False to quit program.
@@ -196,7 +314,21 @@ def handle_qa_session(transcript, socketio):
      
     while True:
         print("\nListening for your question...")
+        '''
+        try:
+            question = get_voice_input_with_timeout()
+        except timeout_decorator.TimeoutError:
+            print("No question received within 5 seconds")
+            socketio.emit('qa_timeout')
+            return True
+        '''
+        
         question = get_voice_input()
+        
+        if question is None:
+            print("No question received within 5 seconds")
+            socketio.emit('qa_timeout')
+            return True
         
         if question.lower() == 'exit':
             socketio.emit('qa_exit')
