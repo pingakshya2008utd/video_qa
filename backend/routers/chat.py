@@ -1,21 +1,29 @@
-from fastapi import APIRouter, HTTPException, Body
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Body, Request
+from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse
+from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 from typing import List, Optional, AsyncGenerator
-from openai import OpenAI
 from datetime import datetime
 import json
 import asyncio
+from openai import OpenAI
 from config import settings
+from fastapi import HTTPException
 
 # Initialize OpenAI client
 client = OpenAI(api_key=settings.openai_api_key)
 
+templates = None
+
 router = APIRouter(
     prefix="/chat",
-    tags=["chat"],
-    responses={404: {"description": "Not found"}},
+    tags=["chat"]
 )
+
+def init_router(template_env):
+    global templates
+    templates = template_env
+    router.responses = {404: {"description": "Not found"}}
 
 # Data models
 class Message(BaseModel):
@@ -63,6 +71,13 @@ async def stream_chat_response(messages: List[dict], model: str, temperature: fl
         print(f"Yielding error: {error_response.strip()}")
         yield error_response
 
+@router.get("/", response_class=HTMLResponse)
+async def chat_page(request: Request):
+    return templates.TemplateResponse(
+        "chat.html",
+        {"request": request}
+    )
+
 @router.post("/")
 async def generate_chat_response(request: ChatRequest = Body(...)):
     try:
@@ -81,7 +96,11 @@ async def generate_chat_response(request: ChatRequest = Body(...)):
                     temperature=request.temperature,
                     max_tokens=request.max_tokens
                 ),
-                media_type="text/event-stream"
+                media_type="text/event-stream",
+                headers={
+                    "Cache-Control": "no-cache",
+                    "Connection": "keep-alive"
+                }
             )
         
         # Non-streaming response
