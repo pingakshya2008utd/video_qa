@@ -1,0 +1,65 @@
+# Python
+backend/__pycache__/
+backend/**/__pycache__/
+backend/*.py[cod]
+backend/**/*.py[cod]
+backend/*.so
+backend/.Python
+backend/.env
+backend/.venv
+backend/env/
+backend/venv/
+backend/ENV/
+backend/env.bak/
+backend/venv.bak/
+backend/*.egg-info/
+backend/dist/
+backend/build/
+backend/eggs/
+backend/*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+backend/*.log
+backend/logs/
+backend/log/
+
+# Coverage reports
+backend/htmlcov/
+backend/.tox/
+backend/.coverage
+backend/.coverage.*
+backend/.cache
+backend/coverage.xml
+backend/*.cover
+
+# Local development
+backend/*.db
+backend/*.sqlite3
+backend/.env.local
+backend/.env.development.local
+backend/.env.test.local
+backend/.env.production.local
+
+# Node (if using frontend)
+frontend/node_modules/
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Jupyter Notebook
+backend/.ipynb_checkpoints
+
+# mypy
+backend/.mypy_cache/
+backend/.dmypy.json
+backend/dmypy.json
+
+# pytest
+backend/.pytest_cache/
