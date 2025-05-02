@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VideoQue - Smart Video Q&A</title>
+    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand': '#FF385C',
+                        'brand-dark': '#E61E4D',
+                        'primary': '#4F46E5', 
+                        'primary-dark': '#3730A3',
+                        'secondary': '#06B6D4',
+                        'tertiary': '#8B5CF6',
+                        'accent': '#10B981',
+                        'warning': '#FBBF24',
+                        'charcoal': '#222222',
+                        'slate': '#717171',
+                        'light-gray': '#F7F7F7'
+                    },
+                    boxShadow: {
+                        'custom': '0 6px 16px rgba(0, 0, 0, 0.12)',
+                        'glow': '0 0 15px rgba(79, 70, 229, 0.5)',
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'float': 'float 3s ease-in-out infinite',
+                    },
+                    keyframes: {
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+        body {
+            font-family: 'Poppins', sans-serif;
+            scroll-behavior: smooth;
+        }
+        
+        .gradient-text {
+            background-image: linear-gradient(90deg, #4F46E5, #10B981);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .bg-gradient-custom {
+            background: linear-gradient(135deg, #4F46E5 0%, #8B5CF6 50%, #06B6D4 100%);
+        }
+        
+        .animate-float {
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        .card-hover {
+            transition: all 0.3s ease;
+        }
+        
+        .card-hover:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 20px rgba(0, 0, 0, 0.1);
+        }
+        
+        .hero-pattern {
+            background-color: #FCFCFC;
+            background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f0f0f0' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+        }
+    </style>
+</head>
+<body class="bg-light-gray">
+    <!-- Navbar with animation -->
+    <nav class="bg-white shadow-sm border-b border-gray-200 sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-play-circle text-brand text-3xl animate-pulse-slow"></i>
+                <span class="font-bold text-2xl gradient-text">VideoQue</span>
+            </div>
+            <div class="hidden md:block">
+                <a href="#features" class="text-charcoal hover:text-primary transition-colors font-medium px-4">Features</a>
+                <a href="#how-it-works" class="text-charcoal hover:text-primary transition-colors font-medium px-4">How it Works</a>
+                <button class="bg-gradient-to-r from-primary to-tertiary hover:from-primary-dark hover:to-secondary text-white py-2 px-6 rounded-full font-medium transition-all duration-300 ml-2">
+                    Get Started
+                </button>
+            </div>
+            <div class="md:hidden">
+                <button class="text-charcoal">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section with animated gradient -->
+    <div class="hero-pattern">
+        <div class="container mx-auto px-6 py-16 md:py-24">
+            <div class="text-center max-w-3xl mx-auto">
+                <h1 class="text-4xl md:text-5xl font-bold mb-6 leading-tight">
+                    <span class="gradient-text">Interact with Videos</span>
+                    <br>Like Never Before
+                </h1>
+                <p class="text-slate text-xl mb-8">Transform passive watching into active learning with AI-powered video conversations</p>
+                <div class="flex flex-col md:flex-row justify-center gap-4">
+                    <button class="bg-gradient-to-r from-primary to-tertiary hover:from-primary-dark hover:to-secondary text-white py-3 px-8 rounded-full font-medium transition-all duration-300 shadow-lg hover:shadow-glow">
+                        Try It Now
+                    </button>
+                    <button class="bg-white text-primary border border-primary hover:bg-primary hover:text-white py-3 px-8 rounded-full font-medium transition-colors shadow-sm">
+                        <i class="fas fa-play mr-2"></i> Watch Demo
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Colorful wave divider -->
+        <div class="w-full overflow-hidden">
+            <svg viewBox="0 0 1200 120" preserveAspectRatio="none" class="w-full h-24">
+                <path d="M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z" class="fill-white"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container mx-auto px-6 py-12">
+        <div class="bg-white rounded-2xl shadow-custom overflow-hidden">
+            <div class="bg-gradient-custom p-8 mb-6">
+                <h1 class="text-4xl font-bold text-center text-white drop-shadow-md">Start the Conversation</h1>
+                <p class="text-center text-white/90 mt-3 text-lg">Ask questions and get instant answers from any YouTube video</p>
+            </div>
+
+            <div class="p-8">
+                <!-- Video URL input with animation -->
+                <div class="flex flex-col md:flex-row mb-8 max-w-3xl mx-auto">
+                    <div class="flex-1 relative">
+                        <div class="absolute left-4 top-1/2 transform -translate-y-1/2 text-tertiary">
+                            <i class="fab fa-youtube text-xl"></i>
+                        </div>
+                        <input id="videoUrl" type="text" placeholder="Paste YouTube URL here..." 
+                               class="w-full pl-12 px-5 py-4 rounded-l-full md:rounded-r-none rounded-r-full mb-2 md:mb-0 border-2 border-gray-300 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 text-lg transition-all duration-300">
+                    </div>
+                    <button id="loadButton" class="bg-gradient-to-r from-primary to-secondary hover:from-primary-dark hover:to-tertiary text-white px-8 py-4 rounded-full md:rounded-l-none md:rounded-r-full transition-all duration-300 text-lg font-medium shadow-lg hover:shadow-glow">
+                        <i class="fas fa-arrow-right mr-2"></i> Load Video
+                    </button>
+                </div>
+                
+                <!-- Video and Q&A section -->
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-8 mt-12">
+                    <!-- Video Section - 3 columns wide -->
+                    <div class="lg:col-span-3">
+                        <div class="rounded-2xl overflow-hidden shadow-lg bg-white border border-gray-100">
+                            <div id="videoContainer" class="aspect-video bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center">
+                                <div class="text-center text-gray-400 animate-float">
+                                    <div class="w-20 h-20 mx-auto bg-primary/10 rounded-full flex items-center justify-center mb-4">
+                                        <i class="fas fa-film text-primary text-3xl"></i>
+                                    </div>
+                                    <p class="text-lg">Your video will appear here</p>
+                                </div>
+                            </div>
+                            <div class="p-5 bg-white border-t border-gray-100">
+                                <div class="flex items-center">
+                                    <div class="mr-3 text-primary bg-primary/10 w-10 h-10 rounded-full flex items-center justify-center">
+                                        <i class="fas fa-circle-play"></i>
+                                    </div>
+                                    <div>
+                                        <h3 class="font-semibold text-xl text-charcoal" id="videoTitle">Video Title</h3>
+                                        <p class="text-slate text-sm">Ready to answer your questions</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Video controls with colorful buttons -->
+                        <div class="mt-4 flex flex-wrap gap-3">
+                            <button class="flex items-center bg-secondary/10 hover:bg-secondary/20 text-secondary px-4 py-2 rounded-lg transition-colors text-sm">
+                                <i class="fas fa-closed-captioning mr-2"></i> Show Captions
+                            </button>
+                            <button class="flex items-center bg-tertiary/10 hover:bg-tertiary/20 text-tertiary px-4 py-2 rounded-lg transition-colors text-sm">
+                                <i class="fas fa-bookmark mr-2"></i> Save Video
+                            </button>
+                            <button class="flex items-center bg-accent/10 hover:bg-accent/20 text-accent px-4 py-2 rounded-lg transition-colors text-sm">
+                                <i class="fas fa-share mr-2"></i> Share
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Q&A Section - 2 columns wide -->
+                    <div class="lg:col-span-2">
+                        <div class="rounded-2xl overflow-hidden shadow-lg border border-gray-100 h-full flex flex-col bg-gradient-to-br from-white to-gray-50">
+                            <div class="bg-white p-5 border-b border-gray-100">
+                                <h2 class="text-xl font-bold gradient-text flex items-center">
+                                    <i class="fas fa-comments text-tertiary mr-2"></i>
+                                    Interactive Q&A
+                                </h2>
+                            </div>
+                            <div id="qaOutput" class="flex-1 overflow-y-auto p-5" style="max-height: 300px;">
+                                <div class="text-center text-slate py-10">
+                                    <div class="w-16 h-16 mx-auto bg-tertiary/10 rounded-full flex items-center justify-center mb-4 animate-float">
+                                        <i class="fas fa-robot text-tertiary text-2xl"></i>
+                                    </div>
+                                    <p>Ask any question about the video<br>and get an instant answer</p>
+                                </div>
+                            </div>
+                            <div class="bg-white p-5 border-t border-gray-100">
+                                <div class="relative">
+                                    <textarea id="userQuestion" placeholder="Type your question here..." rows="2"
+                                             class="w-full p-4 pl-12 rounded-lg border border-gray-300 focus:outline-none focus:border-tertiary focus:ring-1 focus:ring-tertiary mb-3 resize-none transition-all duration-300"></textarea>
+                                    <div class="absolute left-4 top-4 text-tertiary">
+                                        <i class="fas fa-question-circle"></i>
+                                    </div>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <div id="status" class="text-sm px-3 py-1 rounded-full bg-accent/10 text-accent">Ready to answer</div>
+                                    <button id="qaButton" class="bg-gradient-to-r from-tertiary to-secondary hover:from-tertiary/90 hover:to-secondary/90 text-white px-6 py-3 rounded-full transition-all duration-300 font-medium shadow-lg hover:shadow-glow">
+                                        <i class="fas fa-magic mr-2"></i>Ask Question
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Features Section with colorful cards -->
+                <div class="mt-24" id="features">
+                    <div class="text-center mb-12">
+                        <h2 class="text-3xl font-bold gradient-text mb-4">Amazing Features</h2>
+                        <p class="text-slate text-xl max-w-2xl mx-auto">Experience the power of AI-enhanced video interaction with our cutting-edge features</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="card-hover p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+                            <div class="rounded-full bg-primary/10 w-16 h-16 flex items-center justify-center mb-5">
+                                <i class="fas fa-brain text-2xl text-primary"></i>
+                            </div>
+                            <h3 class="font-semibold text-xl mb-3 text-charcoal">Smart AI Analysis</h3>
+                            <p class="text-slate">Our AI system processes video content and understands context for accurate responses.</p>
+                        </div>
+                        <div class="card-hover p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+                            <div class="rounded-full bg-secondary/10 w-16 h-16 flex items-center justify-center mb-5">
+                                <i class="fas fa-comment-dots text-2xl text-secondary"></i>
+                            </div>
+                            <h3 class="font-semibold text-xl mb-3 text-charcoal">Natural Conversations</h3>
+                            <p class="text-slate">Have fluid, human-like conversations about any part of the video content.</p>
+                        </div>
+                        <div class="card-hover p-6 bg-white rounded-2xl shadow-sm border border-gray-100">
+                            <div class="rounded-full bg-tertiary/10 w-16 h-16 flex items-center justify-center mb-5">
+                                <i class="fas fa-bolt text-2xl text-tertiary"></i>
+                            </div>
+                            <h3 class="font-semibold text-xl mb-3 text-charcoal">Instant Responses</h3>
+                            <p class="text-slate">Get immediate answers to your questions without having to rewatch or search.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- How it Works with vibrant colors -->
+                <div class="mt-24 bg-gradient-to-br from-primary/5 to-tertiary/5 p-10 rounded-3xl" id="how-it-works">
+                    <h2 class="text-3xl font-bold text-center mb-12">
+                        <span class="gradient-text">How VideoQue Works</span>
+                    </h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+                        <div class="relative">
+                            <div class="card-hover p-8 bg-white rounded-2xl shadow-custom border border-gray-100 relative z-10">
+                                <div class="rounded-full bg-brand/10 w-16 h-16 flex items-center justify-center mb-6">
+                                    <i class="fas fa-link text-2xl text-brand"></i>
+                                </div>
+                                <div class="absolute top-4 right-4 bg-primary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">1</div>
+                                <h3 class="font-semibold text-xl mb-4 text-charcoal">Paste YouTube URL</h3>
+                                <p class="text-slate">Enter any YouTube video URL and our system will process it instantly.</p>
+                            </div>
+                            <div class="hidden md:block absolute w-32 h-1 bg-gradient-to-r from-primary to-tertiary top-1/2 -right-16 z-0"></div>
+                        </div>
+                        
+                        <div class="relative">
+                            <div class="card-hover p-8 bg-white rounded-2xl shadow-custom border border-gray-100 relative z-10">
+                                <div class="rounded-full bg-secondary/10 w-16 h-16 flex items-center justify-center mb-6">
+                                    <i class="fas fa-question text-2xl text-secondary"></i>
+                                </div>
+                                <div class="absolute top-4 right-4 bg-secondary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">2</div>
+                                <h3 class="font-semibold text-xl mb-4 text-charcoal">Ask Questions</h3>
+                                <p class="text-slate">Ask anything about the video content and get accurate answers.</p>
+                            </div>
+                            <div class="hidden md:block absolute w-32 h-1 bg-gradient-to-r from-secondary to-tertiary top-1/2 -right-16 z-0"></div>
+                        </div>
+                        
+                        <div class="relative">
+                            <div class="card-hover p-8 bg-white rounded-2xl shadow-custom border border-gray-100 relative z-10">
+                                <div class="rounded-full bg-tertiary/10 w-16 h-16 flex items-center justify-center mb-6">
+                                    <i class="fas fa-lightbulb text-2xl text-tertiary"></i>
+                                </div>
+                                <div class="absolute top-4 right-4 bg-tertiary text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">3</div>
+                                <h3 class="font-semibold text-xl mb-4 text-charcoal">Get Smart Answers</h3>
+                                <p class="text-slate">Our AI analyzes the video context to provide intelligent responses.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testimonials with alternating colors -->
+                <div class="mt-24">
+                    <h2 class="text-3xl font-bold text-center gradient-text mb-12">What Users Say</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div class="card-hover p-6 bg-gradient-to-br from-primary/5 to-primary/10 rounded-2xl shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="text-yellow-400 flex">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                </div>
+                            </div>
+                            <p class="text-charcoal mb-4">"VideoQue has completely changed how I learn from YouTube videos. I can now get answers instantly without rewatching!"</p>
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold">S</div>
+                                <div class="ml-3">
+                                    <p class="font-medium">Sarah Johnson</p>
+                                    <p class="text-slate text-sm">Student</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-hover p-6 bg-gradient-to-br from-secondary/5 to-secondary/10 rounded-2xl shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="text-yellow-400 flex">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                </div>
+                            </div>
+                            <p class="text-charcoal mb-4">"As a teacher, this tool has been invaluable for helping my students extract information from educational videos."</p>
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-secondary/20 flex items-center justify-center text-secondary font-bold">M</div>
+                                <div class="ml-3">
+                                    <p class="font-medium">Michael Thompson</p>
+                                    <p class="text-slate text-sm">Teacher</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="card-hover p-6 bg-gradient-to-br from-tertiary/5 to-tertiary/10 rounded-2xl shadow-sm">
+                            <div class="flex items-center mb-4">
+                                <div class="text-yellow-400 flex">
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star"></i>
+                                    <i class="fas fa-star-half-alt"></i>
+                                </div>
+                            </div>
+                            <p class="text-charcoal mb-4">"This platform saves me so much time when researching. The AI understands context surprisingly well."</p>
+                            <div class="flex items-center">
+                                <div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary font-bold">A</div>
+                                <div class="ml-3">
+                                    <p class="font-medium">Alex Chen</p>
+                                    <p class="text-slate text-sm">Researcher</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- CTA Section with gradient -->
+                <div class="mt-24 py-16 px-8 md:px-12 bg-gradient-custom rounded-3xl text-center text-white">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to Transform Your Video Experience?</h2>
+                    <p class="text-white/80 text-xl max-w-2xl mx-auto mb-8">Join thousands of users who are changing how they learn and interact with video content</p>
+                    <button class="bg-white text-primary hover:bg-gray-100 py-4 px-10 rounded-full font-bold transition-all duration-300 shadow-lg hover:shadow-xl">
+                        Get Started For Free
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Footer with colorful elements -->
+    <footer class="bg-gradient-to-br from-charcoal to-gray-900 text-white mt-16 py-12">
+        <div class="container mx-auto px-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <div>
+                    <div class="flex items-center space-x-2 mb-4">
+                        <i class="fas fa-play-circle text-brand text-2xl"></i>
+                        <span class="font-bold text-xl text-white">VideoQue</span>
+                    </div>
+                    <p class="text-gray-400 text-sm">Smart AI-powered video interaction platform that transforms how you learn from content.</p>
+                    <div class="flex mt-4 space-x-4">
+                        <a href="#" class="text-gray-400 hover:text-brand transition-colors"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-brand transition-colors"><i class="fab fa-facebook"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-brand transition-colors"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="text-gray-400 hover:text-brand transition-colors"><i class="fab fa-github"></i></a>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4 text-brand">Product</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#" class="hover:text-white transition-colors">Features</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Pricing</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">API</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Integrations</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4 text-secondary">Resources</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#" class="hover:text-white transition-colors">Documentation</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Tutorials</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Blog</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Support</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold mb-4 text-tertiary">Company</h4>
+                    <ul class="space-y-2 text-gray-400 text-sm">
+                        <li><a href="#" class="hover:text-white transition-colors">About Us</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Careers</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white transition-colors">Terms of Service</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-800 mt-10 pt-6 flex flex-col md:flex-row justify-between items-center">
+                <p class="text-gray-500 text-sm">&copy; 2023 VideoQue. All rights reserved.</p>
+                <div class="flex mt-4 md:mt-0 space-x-6">
+                    <a href="#" class="text-gray-400 hover:text-white transition-colors text-sm">Privacy</a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-colors text-sm">Terms</a>
+                    <a href="#" class="text-gray-400 hover:text-white transition-colors text-sm">Cookies</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Simple JS for animation effects -->
+    <script>
+        // Scroll animation for cards
+        document.addEventListener('DOMContentLoaded', function() {
+            const cards = document.querySelectorAll('.card-hover');
+            cards.forEach((card, index) => {
+                // Add a slight delay between each card animation
+                setTimeout(() => {
+                    card.classList.add('opacity-100');
+                    card.classList.remove('opacity-0');
+                }, index * 100);
+            });
+            
+            // Add smooth scrolling for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    document.querySelector(this.getAttribute('href')).scrollIntoView({
+                        behavior: 'smooth'
+                    });
+                });
+            });
+        });
+    </script>
+</body>
+</html>
