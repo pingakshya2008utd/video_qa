@@ -1,8 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from ml_models import OpenAIVisionClient
 import logging
 import re
+import os
+import cv2
+from youtube_utils import download_video, download_transcript, grab_youtube_frame
+from ml_models import OpenAIVisionClient
+from typing import Optional
+
 import httpx
 
 # Configure logging
@@ -22,6 +29,13 @@ app.add_middleware(
 
 class YouTubeRequest(BaseModel):
     url: str
+
+
+class VideoQuery(BaseModel):
+    video_id: str
+    query: str
+    timestamp: Optional[float] = None
+    is_image_query: bool = False 
 
 @app.get("/")
 def read_root():
@@ -50,6 +64,9 @@ async def get_youtube_info(request: YouTubeRequest):
         # In reality, you would make a request to the YouTube API
         # Example: https://www.googleapis.com/youtube/v3/videos?id={video_id}&key={api_key}&part=snippet
         
+        video_path = download_video(url)
+        transcript = download_transcript(video_id)
+        
         title = await get_video_title(video_id)
         
         return {
@@ -62,6 +79,71 @@ async def get_youtube_info(request: YouTubeRequest):
     except Exception as e:
         logger.error(f"Error processing YouTube URL: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/api/query/video")
+async def process_query(query_request: VideoQuery):
+    """
+    Process a query about a YouTube video - either text-only or image-based
+    """
+    try:
+        video_id = query_request.video_id
+        query = query_request.query
+        timestamp = query_request.timestamp
+        is_image_query = query_request.is_image_query
+
+        print("query-----:", query)
+        
+        logger.info(f"Processing {'image' if is_image_query else 'text'} query for video {video_id}")
+        logger.info(f"Query: {query}")
+        logger.info(f"Timestamp: {timestamp}")
+        
+        # Make sure we have the video downloaded
+        video_path = "video.mp4"  # This assumes the video is already downloaded
+        vision_client = OpenAIVisionClient()
+        if not os.path.exists(video_path):
+            url = f"https://www.youtube.com/watch?v={video_id}"
+            video_path = download_video(url)
+        
+        # Get transcript for context
+        transcript = download_transcript(video_id)
+        
+        response = ""
+        
+        if is_image_query:
+            # This is a query about the current frame
+            if timestamp is None:
+                raise HTTPException(status_code=400, detail="Timestamp is required for image queries")
+                
+            # Get frame from the video at the timestamp
+            #frame = extract_frame_at_timestamp(video_path, timestamp)
+            outputfile,frame=grab_youtube_frame(video_path, timestamp)
+            frame_path = f"frames/{video_id}_{int(timestamp)}.jpg"
+            os.makedirs("frames", exist_ok=True)
+            cv2.imwrite(frame_path, frame)
+            
+            # Use the image-based query function
+            response = vision_client.ask_with_image(query, frame_path)
+            
+        else:
+            # This is a text-only query about the video content
+            # Use the transcript as context if available
+            context = transcript if transcript else f"No transcript available for video {video_id}"
+            
+            # Use the text-only query function
+            response = vision_client.ask_text_only(query, context)
+        
+        return {
+            "response": response,
+            "video_id": video_id,
+            "timestamp": timestamp,
+            "query_type": "image" if is_image_query else "text"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error processing query: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to process query: {str(e)}")
+
 
 def extract_youtube_id(url: str) -> str:
     """
