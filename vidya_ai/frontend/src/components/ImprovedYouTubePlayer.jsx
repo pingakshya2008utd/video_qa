@@ -21,7 +21,9 @@ const ImprovedYouTubePlayer = () => {
   const [queryType, setQueryType] = useState('video'); // 'video' or 'frame'
   
   const videoRef = useRef(null);
+  const playerRef = useRef(null);
   const chatContainerRef = useRef(null);
+  const timeUpdateIntervalRef = useRef(null);
   
   // Handle YouTube URL input
   const handleYoutubeSubmit = async (e) => {
@@ -62,6 +64,9 @@ const ImprovedYouTubePlayer = () => {
       // Clear chat messages when loading a new video
       setChatMessages([]);
       
+      // Initialize YouTube player after setting video ID
+      initializeYouTubePlayer(videoId);
+      
     } catch (error) {
       console.error("Error loading video:", error);
       setErrorMessage(error.message || "Failed to load video");
@@ -70,33 +75,161 @@ const ImprovedYouTubePlayer = () => {
     }
   };
   
+  // Initialize YouTube Player API
+  useEffect(() => {
+    // Load YouTube API if it's not already loaded
+    if (!window.YT) {
+      // This function will be called once the API is loaded
+      window.onYouTubeIframeAPIReady = () => {
+        if (currentVideo.videoId) {
+          initializeYouTubePlayer(currentVideo.videoId);
+        }
+      };
+      
+      // Load the IFrame Player API code asynchronously
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    }
+    
+    return () => {
+      // Clean up interval on component unmount
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+      
+      // Clean up YouTube player on unmount
+      if (playerRef.current) {
+        playerRef.current.destroy();
+      }
+    };
+  }, []);
+  
+  // Initialize YouTube Player
+  const initializeYouTubePlayer = (videoId) => {
+    if (!videoId || !window.YT || typeof window.YT.Player !== 'function') return;
+    
+    // Destroy existing player if there is one
+    if (playerRef.current) {
+      playerRef.current.destroy();
+    }
+    
+    // Create a new player instance
+    playerRef.current = new window.YT.Player('youtube-player', {
+      videoId: videoId,
+      playerVars: {
+        controls: 0,  // Hide default controls
+        disablekb: 0, // Enable keyboard controls
+        enablejsapi: 1,
+        modestbranding: 1,
+        rel: 0,
+        showinfo: 0
+      },
+      events: {
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange,
+        onError: onPlayerError
+      }
+    });
+  };
+  
+  // Handle player ready event
+  const onPlayerReady = (event) => {
+    console.log("YouTube player is ready");
+    setDuration(event.target.getDuration());
+    
+    // Start tracking time
+    startTimeTracking();
+  };
+  
+  // Handle player state change
+  const onPlayerStateChange = (event) => {
+    // Update playing state based on YouTube player state
+    const isPlayerPlaying = event.data === window.YT.PlayerState.PLAYING;
+    setIsPlaying(isPlayerPlaying);
+    
+    // If video ended
+    if (event.data === window.YT.PlayerState.ENDED) {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      
+      // Stop tracking time when video ends
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+    } else if (isPlayerPlaying && !timeUpdateIntervalRef.current) {
+      // Start tracking time if playing and not already tracking
+      startTimeTracking();
+    } else if (!isPlayerPlaying && timeUpdateIntervalRef.current) {
+      // Stop tracking time if paused
+      clearInterval(timeUpdateIntervalRef.current);
+      timeUpdateIntervalRef.current = null;
+    }
+  };
+  
+  // Handle player errors
+  const onPlayerError = (event) => {
+    console.error("YouTube player error:", event.data);
+    setErrorMessage(`YouTube player error: ${event.data}`);
+  };
+  
+  // Start tracking video time
+  const startTimeTracking = () => {
+    if (timeUpdateIntervalRef.current) {
+      clearInterval(timeUpdateIntervalRef.current);
+    }
+    
+    timeUpdateIntervalRef.current = setInterval(() => {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+        try {
+          const time = playerRef.current.getCurrentTime();
+          setCurrentTime(time);
+        } catch (error) {
+          console.error("Error getting current time:", error);
+        }
+      }
+    }, 1000); // Update every second
+  };
+  
   // Handle video playback controls
   const togglePlay = () => {
-    if (videoRef.current) {
+    if (!playerRef.current) return;
+    
+    try {
       if (isPlaying) {
-        videoRef.current.contentWindow.postMessage('{"event":"command","func":"pauseVideo","args":""}', '*');
+        playerRef.current.pauseVideo();
       } else {
-        videoRef.current.contentWindow.postMessage('{"event":"command","func":"playVideo","args":""}', '*');
+        playerRef.current.playVideo();
       }
-      setIsPlaying(!isPlaying);
+    } catch (error) {
+      console.error("Error toggling play state:", error);
     }
   };
   
   const toggleMute = () => {
-    if (videoRef.current) {
+    if (!playerRef.current) return;
+    
+    try {
       if (isMuted) {
-        videoRef.current.contentWindow.postMessage('{"event":"command","func":"unMute","args":""}', '*');
+        playerRef.current.unMute();
       } else {
-        videoRef.current.contentWindow.postMessage('{"event":"command","func":"mute","args":""}', '*');
+        playerRef.current.mute();
       }
       setIsMuted(!isMuted);
+    } catch (error) {
+      console.error("Error toggling mute state:", error);
     }
   };
   
   const handleTimeUpdate = (newTime) => {
-    setCurrentTime(newTime);
-    if (videoRef.current) {
-      videoRef.current.contentWindow.postMessage(`{"event":"command","func":"seekTo","args":[${newTime}, true]}`, '*');
+    if (!playerRef.current) return;
+    
+    try {
+      playerRef.current.seekTo(newTime, true);
+      setCurrentTime(newTime);
+    } catch (error) {
+      console.error("Error seeking to time:", error);
     }
   };
   
@@ -106,12 +239,22 @@ const ImprovedYouTubePlayer = () => {
     
     if (!userQuestion.trim() || !currentVideo.videoId) return;
     
+    // Get current exact timestamp from YouTube player
+    let exactCurrentTime = currentTime;
+    if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+      try {
+        exactCurrentTime = playerRef.current.getCurrentTime();
+      } catch (error) {
+        console.error("Error getting exact current time:", error);
+      }
+    }
+    
     // Add user message to chat
     const userMessage = {
       id: Date.now(),
       sender: 'user',
       text: userQuestion,
-      timestamp: queryType === 'frame' ? currentTime : null
+      timestamp: queryType === 'frame' ? exactCurrentTime : null
     };
     
     setChatMessages(prevMessages => [...prevMessages, userMessage]);
@@ -119,6 +262,8 @@ const ImprovedYouTubePlayer = () => {
     setIsProcessingQuery(true);
     
     try {
+      console.log(`Sending query with timestamp: ${exactCurrentTime} seconds`);
+      
       // Pause video when querying about the current frame
       if (queryType === 'frame' && isPlaying) {
         togglePlay();
@@ -128,7 +273,7 @@ const ImprovedYouTubePlayer = () => {
       const response = await axios.post('http://localhost:8000/api/query/video', {
         video_id: currentVideo.videoId,
         query: userMessage.text,
-        timestamp: queryType === 'frame' ? currentTime : null,
+        timestamp: queryType === 'frame' ? exactCurrentTime : null,
         is_image_query: queryType === 'frame'
       });
       
@@ -136,8 +281,8 @@ const ImprovedYouTubePlayer = () => {
       const aiMessage = {
         id: Date.now() + 1,
         sender: 'ai',
-        text: response.data.response,
-        timestamp: queryType === 'frame' ? currentTime : null
+        text: response.data.response || "I processed your query but got an empty response.",
+        timestamp: queryType === 'frame' ? exactCurrentTime : null
       };
       
       setChatMessages(prevMessages => [...prevMessages, aiMessage]);
@@ -175,7 +320,24 @@ const ImprovedYouTubePlayer = () => {
   
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-8 text-center text-white">Improved YouTube Player with AI Chat</h1>
+       {/* Logo */}
+       {/* Header with Logo */}
+     <div className="flex items-center mb-8">
+        <div className="flex-shrink-0 mr-4">
+          <img 
+            src="/logo-new.png" 
+            alt="Website Logo" 
+            className="h-16 w-auto max-w-[200px] object-cover object-center"
+            style={{ 
+              //clipPath: 'inset(1% 0 1% 0)', /* Trim 10% from top and bottom */
+              width: '240px',
+              height: '50px'
+            }}
+          />
+        </div>
+        <h1 className="text-3xl font-bold text-white">Improved YouTube Player with AI Chat</h1>
+      </div>
+    
       
       {/* YouTube URL Input */}
       <form onSubmit={handleYoutubeSubmit} className="mb-8">
@@ -218,14 +380,7 @@ const ImprovedYouTubePlayer = () => {
         <div className="w-full lg:w-2/3">
           <div className="relative overflow-hidden rounded-xl bg-black shadow-2xl aspect-video">
             {currentVideo.videoId ? (
-              <iframe
-                ref={videoRef}
-                src={currentVideo.source}
-                title={currentVideo.title}
-                className="absolute top-0 left-0 w-full h-full"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              ></iframe>
+              <div id="youtube-player" className="absolute top-0 left-0 w-full h-full"></div>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                 <p className="text-gray-500">No video loaded</p>
@@ -255,15 +410,15 @@ const ImprovedYouTubePlayer = () => {
               <input 
                 type="range" 
                 min="0" 
-                max={duration} 
-                value={currentTime} 
+                max={duration || 100} 
+                value={currentTime || 0}
                 onChange={(e) => handleTimeUpdate(parseFloat(e.target.value))} 
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500" 
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-purple-500" 
                 disabled={!currentVideo.videoId}
               />
               <div className="flex justify-between text-xs text-gray-400 mt-1">
-                <span>{formatTime(currentTime)}</span>
-                <span>{formatTime(duration)}</span>
+                <span>{formatTime(currentTime || 0)}</span>
+                <span>{formatTime(duration || 0)}</span>
               </div>
             </div>
           </div>
@@ -272,7 +427,8 @@ const ImprovedYouTubePlayer = () => {
         {/* Chat Section */}
         <div className="w-full lg:w-1/3 bg-gray-900 rounded-xl shadow-xl overflow-hidden flex flex-col h-[600px]">
           <div className="p-4 bg-gray-800 border-b border-gray-700">
-            <h3 className="font-semibold text-lg">AI Video Assistant</h3>
+            <h3 className="font-semibold text-lg text-white">AI Video Assistant</h3>
+            <p className="text-xs text-gray-400">Current time: {formatTime(currentTime || 0)}</p>
           </div>
           
           {/* Chat Messages */}
@@ -358,7 +514,7 @@ const ImprovedYouTubePlayer = () => {
               />
               <button
                 type="submit"
-                className="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors"
+                className="p-2 bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors text-white"
                 disabled={!userQuestion.trim() || !currentVideo.videoId || isProcessingQuery}
               >
                 <Send size={20} />
