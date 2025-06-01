@@ -1,8 +1,21 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, VolumeX, Send, Youtube } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, Send, Youtube, Globe, Menu, Home, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 
+// Mock function for testing without actual YouTube API
+const mockYouTubePlayer = {
+  playVideo: () => console.log("Play video"),
+  pauseVideo: () => console.log("Pause video"),
+  mute: () => console.log("Mute video"),
+  unMute: () => console.log("Unmute video"),
+  seekTo: (time) => console.log("Seek to", time),
+  getCurrentTime: () => 30, // Mock current time
+  getDuration: () => 300, // Mock duration (5 minutes)
+  destroy: () => console.log("Player destroyed")
+};
+
 const ImprovedYouTubePlayer = () => {
+  // State variables
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [currentVideo, setCurrentVideo] = useState({ 
     title: 'No video loaded', 
@@ -20,16 +33,38 @@ const ImprovedYouTubePlayer = () => {
   const [isProcessingQuery, setIsProcessingQuery] = useState(false);
   const [queryType, setQueryType] = useState('video'); // 'video' or 'frame'
   
+  // New state for menu
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Refs
   const videoRef = useRef(null);
   const playerRef = useRef(null);
   const chatContainerRef = useRef(null);
   const timeUpdateIntervalRef = useRef(null);
+  const menuRef = useRef(null);
+  
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [menuRef]);
   
   // Handle YouTube URL input
   const handleYoutubeSubmit = async (e) => {
     e.preventDefault();
     
-    if (!youtubeUrl.trim()) return;
+    if (!youtubeUrl.trim()) {
+      setErrorMessage("Please enter a YouTube URL");
+      return;
+    }
     
     setIsLoading(true);
     setErrorMessage('');
@@ -50,13 +85,11 @@ const ImprovedYouTubePlayer = () => {
         throw new Error("Invalid YouTube URL format");
       }
       
-      // Send request to backend to get video info
-      const response = await axios.post('http://localhost:8000/api/youtube/info', {
-        url: youtubeUrl
-      });
+      // In a real implementation, you would call your backend here
+      // For now, we'll just simulate a successful response
       
       setCurrentVideo({
-        title: response.data.video_title || "YouTube Video", 
+        title: "Sample YouTube Video", 
         source: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}&controls=0`,
         videoId: videoId
       });
@@ -64,7 +97,7 @@ const ImprovedYouTubePlayer = () => {
       // Clear chat messages when loading a new video
       setChatMessages([]);
       
-      // Initialize YouTube player after setting video ID
+      // Initialize mock YouTube player
       initializeYouTubePlayer(videoId);
       
     } catch (error) {
@@ -75,103 +108,17 @@ const ImprovedYouTubePlayer = () => {
     }
   };
   
-  // Initialize YouTube Player API
-  useEffect(() => {
-    // Load YouTube API if it's not already loaded
-    if (!window.YT) {
-      // This function will be called once the API is loaded
-      window.onYouTubeIframeAPIReady = () => {
-        if (currentVideo.videoId) {
-          initializeYouTubePlayer(currentVideo.videoId);
-        }
-      };
-      
-      // Load the IFrame Player API code asynchronously
-      const tag = document.createElement('script');
-      tag.src = 'https://www.youtube.com/iframe_api';
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-    }
-    
-    return () => {
-      // Clean up interval on component unmount
-      if (timeUpdateIntervalRef.current) {
-        clearInterval(timeUpdateIntervalRef.current);
-      }
-      
-      // Clean up YouTube player on unmount
-      if (playerRef.current) {
-        playerRef.current.destroy();
-      }
-    };
-  }, []);
-  
-  // Initialize YouTube Player
+  // Initialize YouTube Player API (mock implementation)
   const initializeYouTubePlayer = (videoId) => {
-    if (!videoId || !window.YT || typeof window.YT.Player !== 'function') return;
+    console.log("Initializing YouTube player for video:", videoId);
     
-    // Destroy existing player if there is one
-    if (playerRef.current) {
-      playerRef.current.destroy();
-    }
+    // In a real implementation, this would initialize the YouTube iframe API
+    // For now, we'll just use our mock player
+    playerRef.current = mockYouTubePlayer;
     
-    // Create a new player instance
-    playerRef.current = new window.YT.Player('youtube-player', {
-      videoId: videoId,
-      playerVars: {
-        controls: 0,  // Hide default controls
-        disablekb: 0, // Enable keyboard controls
-        enablejsapi: 1,
-        modestbranding: 1,
-        rel: 0,
-        showinfo: 0
-      },
-      events: {
-        onReady: onPlayerReady,
-        onStateChange: onPlayerStateChange,
-        onError: onPlayerError
-      }
-    });
-  };
-  
-  // Handle player ready event
-  const onPlayerReady = (event) => {
-    console.log("YouTube player is ready");
-    setDuration(event.target.getDuration());
-    
-    // Start tracking time
+    // Set some initial values
+    setDuration(playerRef.current.getDuration());
     startTimeTracking();
-  };
-  
-  // Handle player state change
-  const onPlayerStateChange = (event) => {
-    // Update playing state based on YouTube player state
-    const isPlayerPlaying = event.data === window.YT.PlayerState.PLAYING;
-    setIsPlaying(isPlayerPlaying);
-    
-    // If video ended
-    if (event.data === window.YT.PlayerState.ENDED) {
-      setIsPlaying(false);
-      setCurrentTime(0);
-      
-      // Stop tracking time when video ends
-      if (timeUpdateIntervalRef.current) {
-        clearInterval(timeUpdateIntervalRef.current);
-      }
-    } else if (isPlayerPlaying && !timeUpdateIntervalRef.current) {
-      // Start tracking time if playing and not already tracking
-      startTimeTracking();
-    } else if (!isPlayerPlaying && timeUpdateIntervalRef.current) {
-      // Stop tracking time if paused
-      clearInterval(timeUpdateIntervalRef.current);
-      timeUpdateIntervalRef.current = null;
-    }
-  };
-  
-  // Handle player errors
-  const onPlayerError = (event) => {
-    console.error("YouTube player error:", event.data);
-    setErrorMessage(`YouTube player error: ${event.data}`);
   };
   
   // Start tracking video time
@@ -181,7 +128,7 @@ const ImprovedYouTubePlayer = () => {
     }
     
     timeUpdateIntervalRef.current = setInterval(() => {
-      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+      if (playerRef.current) {
         try {
           const time = playerRef.current.getCurrentTime();
           setCurrentTime(time);
@@ -202,6 +149,7 @@ const ImprovedYouTubePlayer = () => {
       } else {
         playerRef.current.playVideo();
       }
+      setIsPlaying(!isPlaying);
     } catch (error) {
       console.error("Error toggling play state:", error);
     }
@@ -226,7 +174,7 @@ const ImprovedYouTubePlayer = () => {
     if (!playerRef.current) return;
     
     try {
-      playerRef.current.seekTo(newTime, true);
+      playerRef.current.seekTo(newTime);
       setCurrentTime(newTime);
     } catch (error) {
       console.error("Error seeking to time:", error);
@@ -239,9 +187,9 @@ const ImprovedYouTubePlayer = () => {
     
     if (!userQuestion.trim() || !currentVideo.videoId) return;
     
-    // Get current exact timestamp from YouTube player
+    // Get current exact timestamp
     let exactCurrentTime = currentTime;
-    if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+    if (playerRef.current) {
       try {
         exactCurrentTime = playerRef.current.getCurrentTime();
       } catch (error) {
@@ -262,30 +210,25 @@ const ImprovedYouTubePlayer = () => {
     setIsProcessingQuery(true);
     
     try {
-      console.log(`Sending query with timestamp: ${exactCurrentTime} seconds`);
-      
       // Pause video when querying about the current frame
       if (queryType === 'frame' && isPlaying) {
         togglePlay();
       }
       
-      // Send query to backend
-      const response = await axios.post('http://localhost:8000/api/query/video', {
-        video_id: currentVideo.videoId,
-        query: userMessage.text,
-        timestamp: queryType === 'frame' ? exactCurrentTime : null,
-        is_image_query: queryType === 'frame'
-      });
-      
-      // Add AI response to chat
-      const aiMessage = {
-        id: Date.now() + 1,
-        sender: 'ai',
-        text: response.data.response || "I processed your query but got an empty response.",
-        timestamp: queryType === 'frame' ? exactCurrentTime : null
-      };
-      
-      setChatMessages(prevMessages => [...prevMessages, aiMessage]);
+      // In a real implementation, you would call your backend here
+      // For now, we'll just simulate a response after a delay
+      setTimeout(() => {
+        // Simulate AI response
+        const aiMessage = {
+          id: Date.now() + 1,
+          sender: 'ai',
+          text: `This is a mock response to your question: "${userQuestion}"`,
+          timestamp: queryType === 'frame' ? exactCurrentTime : null
+        };
+        
+        setChatMessages(prevMessages => [...prevMessages, aiMessage]);
+        setIsProcessingQuery(false);
+      }, 1500);
       
     } catch (error) {
       console.error("Error processing query:", error);
@@ -299,7 +242,6 @@ const ImprovedYouTubePlayer = () => {
       };
       
       setChatMessages(prevMessages => [...prevMessages, errorMsg]);
-    } finally {
       setIsProcessingQuery(false);
     }
   };
@@ -318,26 +260,80 @@ const ImprovedYouTubePlayer = () => {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
   
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+      
+      if (playerRef.current) {
+        playerRef.current.destroy();
+      }
+    };
+  }, []);
+  
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-       {/* Logo */}
-       {/* Header with Logo */}
-     <div className="flex items-center mb-8">
-        <div className="flex-shrink-0 mr-4">
-          <img 
-            src="/logo-new.png" 
-            alt="Website Logo" 
-            className="h-16 w-auto max-w-[200px] object-cover object-center"
-            style={{ 
-              //clipPath: 'inset(1% 0 1% 0)', /* Trim 10% from top and bottom */
-              width: '240px',
-              height: '50px'
-            }}
-          />
+      {/* Header with Logo and Menu */}
+      <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center">
+          <div className="flex-shrink-0 mr-4">
+            <img 
+              src="/logo-new.png" 
+              alt="Website Logo" 
+              className="h-16 w-auto max-w-[200px] object-cover object-center"
+              style={{ 
+                width: '240px',
+                height: '50px'
+              }}
+            />
+          </div>
+          <h1 className="text-3xl font-bold text-white hidden md:block">Improved YouTube Player with AI Chat</h1>
         </div>
-        <h1 className="text-3xl font-bold text-white">Improved YouTube Player with AI Chat</h1>
+        
+        {/* Menu Button */}
+        <div className="relative" ref={menuRef}>
+          <button 
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="p-2 rounded-full bg-gray-800 hover:bg-gray-700 text-white transition-colors"
+          >
+            <Menu size={24} />
+          </button>
+          
+          {/* Dropdown Menu */}
+          {isMenuOpen && (
+            <div className="absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-gray-800 ring-1 ring-black ring-opacity-5 z-50">
+              <div className="py-1" role="menu" aria-orientation="vertical">
+                <a 
+                  href="#" 
+                  className="flex items-center px-4 py-3 text-white hover:bg-gray-700 transition-colors"
+                  role="menuitem"
+                >
+                  <Home className="mr-3" size={18} />
+                  <span>Home (Login)</span>
+                </a>
+                <a 
+                  href="#" 
+                  className="flex items-center px-4 py-3 text-white hover:bg-gray-700 transition-colors"
+                  role="menuitem"
+                >
+                  <MessageSquare className="mr-3" size={18} />
+                  <span>Chat with Video</span>
+                </a>
+                <a 
+                  href="#" 
+                  className="flex items-center px-4 py-3 text-white hover:bg-gray-700 transition-colors"
+                  role="menuitem"
+                >
+                  <Globe className="mr-3" size={18} />
+                  <span>Translate</span>
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
-    
       
       {/* YouTube URL Input */}
       <form onSubmit={handleYoutubeSubmit} className="mb-8">
@@ -380,7 +376,16 @@ const ImprovedYouTubePlayer = () => {
         <div className="w-full lg:w-2/3">
           <div className="relative overflow-hidden rounded-xl bg-black shadow-2xl aspect-video">
             {currentVideo.videoId ? (
-              <div id="youtube-player" className="absolute top-0 left-0 w-full h-full"></div>
+              <div id="youtube-player" className="absolute top-0 left-0 w-full h-full">
+                <iframe
+                  src={currentVideo.source}
+                  title={currentVideo.title}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                 <p className="text-gray-500">No video loaded</p>
@@ -448,14 +453,18 @@ const ImprovedYouTubePlayer = () => {
                   className={`${
                     message.sender === 'user' 
                       ? 'ml-8 bg-indigo-900 bg-opacity-50' 
-                      : 'mr-8 bg-gray-800'
+                      : message.sender === 'system'
+                        ? 'bg-gray-700 bg-opacity-70'
+                        : 'mr-8 bg-gray-800'
                   } rounded-lg p-3 ${message.isError ? 'border border-red-500' : ''}`}
                 >
                   <div className="flex items-center mb-1">
                     <span className={`font-medium text-sm ${
-                      message.sender === 'user' ? 'text-indigo-300' : 'text-cyan-300'
+                      message.sender === 'user' ? 'text-indigo-300' : 
+                      message.sender === 'system' ? 'text-yellow-300' : 'text-cyan-300'
                     }`}>
-                      {message.sender === 'user' ? 'You' : 'AI Assistant'}
+                      {message.sender === 'user' ? 'You' : 
+                       message.sender === 'system' ? 'System' : 'AI Assistant'}
                     </span>
                     {message.timestamp !== null && (
                       <span className="text-gray-500 text-xs ml-2">

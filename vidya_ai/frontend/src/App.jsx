@@ -1,13 +1,10 @@
-import React from 'react';
-import ImprovedYouTubePlayer from './components/ImprovedYouTubePlayer';
-import './App.css';
+// CORRECT structure:
+import React from 'react'
+import ImprovedYouTubePlayer from './components/ImprovedYoutubePlayer'
+import './App.css'
 
 function App() {
-  return (
-    <div className="App">
-      <ImprovedYouTubePlayer />
-    </div>
-  );
+  return <ImprovedYouTubePlayer />
 }
 
-export default App;
+export default App
