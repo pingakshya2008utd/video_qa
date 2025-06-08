@@ -14,7 +14,7 @@ const mockYouTubePlayer = {
   destroy: () => console.log("Player destroyed")
 };
 
-const ImprovedYouTubePlayer = () => {
+const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
   // State variables
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [currentVideo, setCurrentVideo] = useState({ 
@@ -321,14 +321,19 @@ const ImprovedYouTubePlayer = () => {
                   <MessageSquare className="mr-3" size={18} />
                   <span>Chat with Video</span>
                 </a>
-                <a 
-                  href="#" 
-                  className="flex items-center px-4 py-3 text-white hover:bg-gray-700 transition-colors"
+                <button 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    if (onNavigateToTranslate) {
+                      onNavigateToTranslate();
+                    }
+                  }}
+                  className="flex items-center w-full px-4 py-3 text-white hover:bg-gray-700 transition-colors text-left"
                   role="menuitem"
                 >
                   <Globe className="mr-3" size={18} />
                   <span>Translate</span>
-                </a>
+                </button>
               </div>
             </div>
           )}
