@@ -74,6 +74,7 @@ mkdir videos frames output
 
 6. **Run the backend server**
 ```bash
+cd backend
 python youtube_backend.py
 ```
 The backend will be available at `http://localhost:8000`
