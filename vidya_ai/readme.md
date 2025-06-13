@@ -268,18 +268,38 @@ Returns the translated video file for download.
 ## File Structure
 
 ```
-youtube-ai-assistant/
-├── youtube_backend.py          # Main FastAPI backend
-├── ml_models.py               # OpenAI integration
-├── translate_elevenlabs.py    # ElevenLabs translation
-├── youtube_utils.py           # YouTube utilities
-├── ImprovedYouTubePlayer.jsx  # Main React component
-├── TranslatePage.jsx          # Translation interface
-├── .env                       # Environment variables
-├── videos/                    # Downloaded videos
-├── frames/                    # Extracted frames
-├── output/                    # Translation output
-└── README.md                  # This file
+youtube-video-ai/
+├── backend/                          # Python FastAPI backend
+│   ├── frames/                       # Extracted video frames
+│   ├── output/                       # Translation output directory
+│   │   └── [job-id]/                # Translation job folders
+│   │       ├── [video-id]/          # Individual video translations
+│   │       │   ├── meta.json        # Translation metadata
+│   │       │   └── dubbed_video.mp4 # Translated video output
+│   ├── videos/                       # Downloaded YouTube videos
+│   ├── ml_models.py                  # AI model integration
+│   ├── translate_elevenlabs.py       # ElevenLabs translation service
+│   ├── translate_video.py            # Video translation logic
+│   ├── youtube_backend.py            # Main FastAPI application
+│   └── youtube_utils.py              # YouTube utility functions
+├── frontend/                         # React frontend application
+│   ├── public/
+│   │   └── logo-new.png             # Application logo
+│   ├── src/
+│   │   ├── components/
+│   │   │   ├── ImprovedYouTubePlayer.jsx  # Main video player component
+│   │   │   └── TranslatePage.jsx          # Translation interface
+│   │   ├── App.jsx                  # Main application component
+│   │   ├── App.css                  # Application styles
+│   │   ├── index.css                # Global styles
+│   │   └── main.jsx                 # React entry point
+│   ├── index.html                   # HTML template
+│   ├── package.json                 # Dependencies and scripts
+│   ├── postcss.config.js            # PostCSS configuration
+│   ├── tailwind.config.js           # Tailwind CSS configuration
+│   └── vite.config.js               # Vite configuration
+├── README.md                        # Project documentation
+└── tailwind.html                    # Static HTML template
 ```
 
 ## Configuration
