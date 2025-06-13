@@ -41,8 +41,9 @@ A comprehensive AI-powered video analysis and translation platform that allows u
 
 1. **Clone the repository**
 ```bash
-git clone <repository-url>
-cd youtube-ai-assistant
+git clone https://github.com/pingakshya2008utd/video_qa.git
+git checkout dev_branch
+cd vidya_ai
 ```
 
 2. **Create and activate virtual environment**
