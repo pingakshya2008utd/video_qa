@@ -1,13 +1,14 @@
-# YouTube AI Video Assistant
+# Vidya AI Video Assistant
 
-A comprehensive AI-powered video analysis and translation platform that allows users to interact with YouTube videos through natural language queries and translate videos into multiple languages.
+In this project, I have created an edtech platform where the user can interact with online eductional or any other video. I have created an interface where you can chat with the video using RAG and ask question to a particular frame in a video. Let's say the frame contains a digital circuit. You can ask what does the circuit represent and it will explain the image in that frame.
 
 ## Features
-
+ ### AI Agents
 - **YouTube Video Analysis**: Load any YouTube video and ask AI questions about its content
 - **Frame-based Queries**: Ask questions about specific video frames at any timestamp
 - **Video Translation**: Translate YouTube videos into multiple languages using ElevenLabs AI
-- **Real-time Chat Interface**: Interactive chat with AI about video content
+
+### Video Player Features
 - **Video Controls**: Custom video player with playback controls
 - **Multi-language Support**: Support for Spanish, Hindi, Bengali, and Assamese translations
 
@@ -15,7 +16,9 @@ A comprehensive AI-powered video analysis and translation platform that allows u
 
 ### Backend
 - **FastAPI**: Modern, fast web framework for building APIs
-- **OpenAI GPT-4**: For text and vision-based queries
+- **OpenAI GPT-4o**: For vision-based queries
+- **GPT-4.5 turbo**: For chat with transcript
+- **LLama Index**: For video RAG
 - **ElevenLabs API**: For video dubbing and translation
 - **yt-dlp**: YouTube video downloading
 - **OpenCV**: Video frame extraction
