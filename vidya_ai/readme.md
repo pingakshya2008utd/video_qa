@@ -103,6 +103,19 @@ npm run dev
 ```
 The frontend will be available at `http://localhost:5173`
 
+
+## Screenshots
+
+### Chat Interface
+![Chat Interface](chat_interface.png)
+
+The main interface showing YouTube video analysis with AI chat functionality. Users can ask questions about video content or specific frames, with real-time responses from the AI assistant.
+
+### Video Translation Interface
+![Video Translation Interface](translation_interface.png)
+
+The translation interface where users can input YouTube URLs, select target languages, and monitor translation progress with detailed logs.
+
 ## API Documentation
 
 ### Base URL
