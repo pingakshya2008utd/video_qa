@@ -2,20 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Send, Youtube, Globe, Menu, Home, MessageSquare } from 'lucide-react';
 import axios from 'axios';
 
-// Mock function for testing without actual YouTube API
-const mockYouTubePlayer = {
-  playVideo: () => console.log("Play video"),
-  pauseVideo: () => console.log("Pause video"),
-  mute: () => console.log("Mute video"),
-  unMute: () => console.log("Unmute video"),
-  seekTo: (time) => console.log("Seek to", time),
-  getCurrentTime: () => 30, // Mock current time
-  getDuration: () => 300, // Mock duration (5 minutes)
-  destroy: () => console.log("Player destroyed")
-};
-
 const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
-  // State variables
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [currentVideo, setCurrentVideo] = useState({ 
     title: 'No video loaded', 
@@ -33,10 +20,13 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
   const [isProcessingQuery, setIsProcessingQuery] = useState(false);
   const [queryType, setQueryType] = useState('video'); // 'video' or 'frame'
   
+  // New state for translation
+  const [selectedLanguage, setSelectedLanguage] = useState('');
+  const [isTranslating, setIsTranslating] = useState(false);
+  
   // New state for menu
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   
-  // Refs
   const videoRef = useRef(null);
   const playerRef = useRef(null);
   const chatContainerRef = useRef(null);
@@ -61,10 +51,7 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
   const handleYoutubeSubmit = async (e) => {
     e.preventDefault();
     
-    if (!youtubeUrl.trim()) {
-      setErrorMessage("Please enter a YouTube URL");
-      return;
-    }
+    if (!youtubeUrl.trim()) return;
     
     setIsLoading(true);
     setErrorMessage('');
@@ -85,11 +72,13 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
         throw new Error("Invalid YouTube URL format");
       }
       
-      // In a real implementation, you would call your backend here
-      // For now, we'll just simulate a successful response
+      // Send request to backend to get video info
+      const response = await axios.post('http://localhost:8000/api/youtube/info', {
+        url: youtubeUrl
+      });
       
       setCurrentVideo({
-        title: "Sample YouTube Video", 
+        title: response.data.video_title || "YouTube Video", 
         source: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=${window.location.origin}&controls=0`,
         videoId: videoId
       });
@@ -97,7 +86,7 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
       // Clear chat messages when loading a new video
       setChatMessages([]);
       
-      // Initialize mock YouTube player
+      // Initialize YouTube player after setting video ID
       initializeYouTubePlayer(videoId);
       
     } catch (error) {
@@ -108,17 +97,104 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     }
   };
   
-  // Initialize YouTube Player API (mock implementation)
+  // Initialize YouTube Player API
+  useEffect(() => {
+    // Load YouTube API if it's not already loaded
+    if (!window.YT) {
+      // This function will be called once the API is loaded
+      window.onYouTubeIframeAPIReady = () => {
+        if (currentVideo.videoId) {
+          initializeYouTubePlayer(currentVideo.videoId);
+        }
+      };
+      
+      // Load the IFrame Player API code asynchronously
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+    }
+    
+    return () => {
+      // Clean up interval on component unmount
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+      }
+      
+      // Clean up YouTube player on unmount
+      if (playerRef.current) {
+        playerRef.current.destroy();
+      }
+    };
+  }, []);
+  
+  // Initialize YouTube Player
   const initializeYouTubePlayer = (videoId) => {
-    console.log("Initializing YouTube player for video:", videoId);
+    if (!videoId || !window.YT || typeof window.YT.Player !== 'function') return;
     
-    // In a real implementation, this would initialize the YouTube iframe API
-    // For now, we'll just use our mock player
-    playerRef.current = mockYouTubePlayer;
+    // Destroy existing player if there is one
+    if (playerRef.current) {
+      playerRef.current.destroy();
+    }
     
-    // Set some initial values
-    setDuration(playerRef.current.getDuration());
+    // Create a new player instance
+    playerRef.current = new window.YT.Player('youtube-player', {
+      videoId: videoId,
+      playerVars: {
+        controls: 0,  // Hide default controls
+        disablekb: 0, // Enable keyboard controls
+        enablejsapi: 1,
+        modestbranding: 1,
+        rel: 0,
+        showinfo: 0
+      },
+      events: {
+        onReady: onPlayerReady,
+        onStateChange: onPlayerStateChange,
+        onError: onPlayerError
+      }
+    });
+  };
+  
+  // Handle player ready event
+  const onPlayerReady = (event) => {
+    console.log("YouTube player is ready");
+    setDuration(event.target.getDuration());
+    
+    // Start tracking time
     startTimeTracking();
+  };
+  
+  // Handle player state change
+  const onPlayerStateChange = (event) => {
+    // Update playing state based on YouTube player state
+    const isPlayerPlaying = event.data === window.YT.PlayerState.PLAYING;
+    setIsPlaying(isPlayerPlaying);
+    
+    // If video ended
+    if (event.data === window.YT.PlayerState.ENDED) {
+      setIsPlaying(false);
+      setCurrentTime(0);
+      
+      // Stop tracking time when video ends
+      if (timeUpdateIntervalRef.current) {
+        clearInterval(timeUpdateIntervalRef.current);
+        timeUpdateIntervalRef.current = null;
+      }
+    } else if (isPlayerPlaying && !timeUpdateIntervalRef.current) {
+      // Start tracking time if playing and not already tracking
+      startTimeTracking();
+    } else if (!isPlayerPlaying && timeUpdateIntervalRef.current) {
+      // Stop tracking time if paused
+      clearInterval(timeUpdateIntervalRef.current);
+      timeUpdateIntervalRef.current = null;
+    }
+  };
+  
+  // Handle player errors
+  const onPlayerError = (event) => {
+    console.error("YouTube player error:", event.data);
+    setErrorMessage(`YouTube player error: ${event.data}`);
   };
   
   // Start tracking video time
@@ -128,7 +204,7 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     }
     
     timeUpdateIntervalRef.current = setInterval(() => {
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
         try {
           const time = playerRef.current.getCurrentTime();
           setCurrentTime(time);
@@ -149,7 +225,6 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
       } else {
         playerRef.current.playVideo();
       }
-      setIsPlaying(!isPlaying);
     } catch (error) {
       console.error("Error toggling play state:", error);
     }
@@ -174,7 +249,7 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     if (!playerRef.current) return;
     
     try {
-      playerRef.current.seekTo(newTime);
+      playerRef.current.seekTo(newTime, true);
       setCurrentTime(newTime);
     } catch (error) {
       console.error("Error seeking to time:", error);
@@ -187,9 +262,9 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     
     if (!userQuestion.trim() || !currentVideo.videoId) return;
     
-    // Get current exact timestamp
+    // Get current exact timestamp from YouTube player
     let exactCurrentTime = currentTime;
-    if (playerRef.current) {
+    if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
       try {
         exactCurrentTime = playerRef.current.getCurrentTime();
       } catch (error) {
@@ -210,25 +285,30 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     setIsProcessingQuery(true);
     
     try {
+      console.log(`Sending query with timestamp: ${exactCurrentTime} seconds`);
+      
       // Pause video when querying about the current frame
       if (queryType === 'frame' && isPlaying) {
         togglePlay();
       }
       
-      // In a real implementation, you would call your backend here
-      // For now, we'll just simulate a response after a delay
-      setTimeout(() => {
-        // Simulate AI response
-        const aiMessage = {
-          id: Date.now() + 1,
-          sender: 'ai',
-          text: `This is a mock response to your question: "${userQuestion}"`,
-          timestamp: queryType === 'frame' ? exactCurrentTime : null
-        };
-        
-        setChatMessages(prevMessages => [...prevMessages, aiMessage]);
-        setIsProcessingQuery(false);
-      }, 1500);
+      // Send query to backend
+      const response = await axios.post('http://localhost:8000/api/query/video', {
+        video_id: currentVideo.videoId,
+        query: userMessage.text,
+        timestamp: queryType === 'frame' ? exactCurrentTime : null,
+        is_image_query: queryType === 'frame'
+      });
+      
+      // Add AI response to chat
+      const aiMessage = {
+        id: Date.now() + 1,
+        sender: 'ai',
+        text: response.data.response || "I processed your query but got an empty response.",
+        timestamp: queryType === 'frame' ? exactCurrentTime : null
+      };
+      
+      setChatMessages(prevMessages => [...prevMessages, aiMessage]);
       
     } catch (error) {
       console.error("Error processing query:", error);
@@ -242,7 +322,47 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
       };
       
       setChatMessages(prevMessages => [...prevMessages, errorMsg]);
+    } finally {
       setIsProcessingQuery(false);
+    }
+  };
+  
+  // NEW: Handle translation
+  const handleTranslate = async () => {
+    if (!selectedLanguage || !currentVideo.videoId) return;
+    
+    setIsTranslating(true);
+    
+    try {
+      // Example API call to translate
+      const response = await axios.post('http://localhost:8000/api/translate', {
+        video_id: currentVideo.videoId,
+        language: selectedLanguage
+      });
+      
+      // Add a system message to the chat
+      const translationMessage = {
+        id: Date.now(),
+        sender: 'system',
+        text: `Video is being translated to ${selectedLanguage}. This may take a moment...`,
+      };
+      
+      setChatMessages(prevMessages => [...prevMessages, translationMessage]);
+      
+    } catch (error) {
+      console.error("Error translating video:", error);
+      
+      // Add error message to chat
+      const errorMsg = {
+        id: Date.now(),
+        sender: 'system',
+        text: `Failed to translate to ${selectedLanguage}: ${error.message || "Unknown error"}`,
+        isError: true
+      };
+      
+      setChatMessages(prevMessages => [...prevMessages, errorMsg]);
+    } finally {
+      setIsTranslating(false);
     }
   };
   
@@ -260,36 +380,23 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   };
   
-  // Clean up on unmount
-  useEffect(() => {
-    return () => {
-      if (timeUpdateIntervalRef.current) {
-        clearInterval(timeUpdateIntervalRef.current);
-      }
-      
-      if (playerRef.current) {
-        playerRef.current.destroy();
-      }
-    };
-  }, []);
-  
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Header with Logo and Menu */}
+       {/* Logo */}
+       {/* Header with Logo */}
       <div className="flex items-center justify-between mb-8">
-        <div className="flex items-center">
-          <div className="flex-shrink-0 mr-4">
-            <img 
-              src="/logo-new.png" 
-              alt="Website Logo" 
-              className="h-16 w-auto max-w-[200px] object-cover object-center"
-              style={{ 
-                width: '240px',
-                height: '50px'
-              }}
-            />
-          </div>
-          <h1 className="text-3xl font-bold text-white hidden md:block">Improved YouTube Player with AI Chat</h1>
+        <div className="flex-shrink-0 mr-4">
+          <img 
+            src="/logo-new.png" 
+            alt="Website Logo" 
+            className="h-16 w-auto max-w-[200px] object-cover object-center"
+            style={{ 
+              //clipPath: 'inset(1% 0 1% 0)', /* Trim 10% from top and bottom */
+              width: '240px',
+              height: '50px'
+            }}
+          />
+          <h1 className="text-3xl font-bold text-white">Improved YouTube Player with AI Chat</h1>
         </div>
         
         {/* Menu Button */}
@@ -381,16 +488,7 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
         <div className="w-full lg:w-2/3">
           <div className="relative overflow-hidden rounded-xl bg-black shadow-2xl aspect-video">
             {currentVideo.videoId ? (
-              <div id="youtube-player" className="absolute top-0 left-0 w-full h-full">
-                <iframe
-                  src={currentVideo.source}
-                  title={currentVideo.title}
-                  className="w-full h-full"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                ></iframe>
-              </div>
+              <div id="youtube-player" className="absolute top-0 left-0 w-full h-full"></div>
             ) : (
               <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
                 <p className="text-gray-500">No video loaded</p>
@@ -431,6 +529,43 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
                 <span>{formatTime(duration || 0)}</span>
               </div>
             </div>
+          </div>
+          
+          {/* NEW: Translation Controls */}
+          <div className="mt-6 flex items-center space-x-4">
+            <div className="flex items-center bg-gray-800 rounded-lg p-2">
+              <Globe size={20} className="text-purple-400 mr-2" />
+              <select
+                value={selectedLanguage}
+                onChange={(e) => setSelectedLanguage(e.target.value)}
+                className="bg-gray-800 text-white border-none focus:outline-none focus:ring-2 focus:ring-purple-500 rounded-lg p-1"
+                disabled={!currentVideo.videoId || isTranslating}
+              >
+                <option value="">Select Language</option>
+                <option value="spanish">Spanish</option>
+                <option value="assamese">Assamese</option>
+                <option value="hindi">Hindi</option>
+                <option value="bengali">Bengali</option>
+              </select>
+            </div>
+            
+            <button
+              onClick={handleTranslate}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+              disabled={!selectedLanguage || !currentVideo.videoId || isTranslating}
+            >
+              {isTranslating ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Translating...
+                </>
+              ) : (
+                'Translate'
+              )}
+            </button>
           </div>
         </div>
         
