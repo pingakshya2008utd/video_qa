@@ -18,7 +18,7 @@ In this project, I have created an edtech platform where the user can interact w
 - **FastAPI**: Modern, fast web framework for building APIs
 - **OpenAI GPT-4o**: For vision-based queries
 - **GPT-4.5 turbo**: For chat with transcript
-- **LLama Index**: For video RAG
+- **[LLama Index](https://www.llamaindex.ai/blog/multimodal-rag-for-advanced-video-processing-with-llamaindex-lancedb-33be4804822e)**: For video RAG
 - **ElevenLabs API**: For video dubbing and translation
 - **yt-dlp**: YouTube video downloading
 - **OpenCV**: Video frame extraction
