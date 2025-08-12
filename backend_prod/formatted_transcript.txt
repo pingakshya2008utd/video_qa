@@ -1,0 +1,123 @@
+Title: What is Low-Rank Adaptation (LoRA) | explained by the inventor
+Duration: 448 seconds
+================================================================================
+00:00 - 00:13
+Low-rank adaptation, or Laura, allows you to efficiently customize pre-trained neural networks, such as diffusion models or language models. It speeds up training and drastically reduces the size of.
+
+00:10 - 00:25
+Model checkpoints by training very few parameters compared to the base model while preserving the performance of full fine-tuning. It has become one of the go-to methods for customizing AI models.
+
+00:23 - 00:37
+My name is Edward. Who and I led the invention of Laura when I was a researcher at Microsoft. In this video, I'll share the research story, how I understand it, and its technical benefits.
+
+00:34 - 00:48
+It was early 2021, and 2P3 just came out the year before. Feels like such a long time ago. Microsoft, at the time, just partnered up with OpenAI. My team at Microsoft was tasked with answering, can.
+
+00:46 - 00:59
+This GP3 stuff actually makes money. Somewhat surprising finding was that Fuchsia prompting was not enough to get even the largest models were from well enough for production, especially for tasks like natural language to code.
+
+00:57 - 01:12
+Because it rarely appears in the training data, fine-tuning through grading updates was a necessity. However, full fine-tuning is prohibitively expensive. A single model checkpoint for.
+
+01:09 - 01:22
+The 175 billion parameter variant is 1 TBTE large, which is hard to store and takes minutes to load when deployed. That's not going to work when we need to.
+
+01:19 - 01:31
+Switch among tasks and users rapidly. We tried many of the shelf parameter efficient fine-tuning methods, but all of them had to compromise for our case.
+
+01:29 - 01:42
+It was with product impact in mind that we invented Laura. So, what is Laura? I like to see it as a generalization of full fine-tuning by asking two questions.
+
+01:40 - 01:53
+Question one: Do we need to fine-tune all the parameters? Question two: For the weight matrices, how expressive should the updates be in terms of matrix rank? We can tune these.
+
+01:50 - 02:05
+Two questions: Into the two axes of a 2D plane, full fine-tuning is all the way in the upper right corner. The axes, including the origin, correspond to the original model. Any point in this box is.
+
+02:02 - 02:16
+A valid Laura configuration. Let's quickly talk about how we control the expressivity of a matrix update by controlling its rank. A D Byd Matrix can represent any linear transformation in A.
+
+02:14 - 02:28
+D-dimensional vector space. However, if we start with a vector in Rd, first transform it to RR where R is less than D, and finally transform it back to Rd, we restrict the kind of linear.
+
+02:26 - 02:38
+Transformations. We can represent how does stopping by RR achieve that. Imagine that extreme case where R or rank equals one. Whatever the input does boils down.
+
+02:36 - 02:48
+To just one number, which can only scale the output by picking a small R. The kind of linear transformation we can represent is greatly limited, even though.
+
+02:45 - 02:59
+The output is still in Rd now. We only have to store 2 * D * R parameters instead of d^2. This is how Laura stores matrix updates. Now back to the 2D plane.
+
+02:57 - 03:10
+We talked about the surprising result of the Laura paper. It is at a point near the origin and performs just as well as full fine-tuning all the way in the corner. Once we see Laura as a generalization of.
+
+03:08 - 03:21
+Full fine tuning. We can easily answer some commonly asked questions for using Laura, such as how to choose the rank R, when to use full fine tuning, since full fine tuning is a special case of.
+
+03:19 - 03:32
+Laura, we know that full fine-tuning works. We can start with a point near the origin and work our way back to the corner. At some point, this has to work, and more likely than not, what ended up.
+
+03:30 - 03:42
+Working will be near the origin. Otherwise, just give up and do full finey. How may that happen? Let's consider a thought experiment. If we take a language model pre-trained on English and English.
+
+03:40 - 03:55
+Only, but we want to adapt it for some tasks. Say in Marsh. Let's say that English and Martian have little in common. Since we're basically training the model all over again, parameter-efficient fine-tuning methods shouldn't.
+
+03:53 - 04:05
+Work too well, so we might as well do full fine training instead. Another question is, can I use Laura for a certain model architecture? Say, a WaveNet or a Support Vector.
+
+04:03 - 04:17
+Machine. And by the way, nobody really asks about the latter. But as long as the model uses matrix multiplication, we can ask: do we need to find between all the parameters? And how expressive should.
+
+04:15 - 04:30
+Updates. As long as we can ask these two questions, we can use Laura, which makes it very generally applicable indeed. While we invented Laura for large language models, people later found it to be very effective for diffusion models.
+
+04:27 - 04:41
+As well, I want to point out that one advantage of Laura is that it's clear what to do next. If "Enter" performs, we adapt more parameters and increase the rank for approaches like prefix tuning.
+
+04:39 - 04:53
+Bit fit or adapter? It's not clear what we can do next because there isn't a knob to turn that allows these methods to recover full fine tuning. Unlike Laura. Now, let's dive into the specifics.
+
+04:50 - 05:03
+Of the benefits of Laura, the most visible one is a reduction of checkpoint sizes on GP3. We reduce the checkpoint size from 1 TB down to 25 megabytes. This is a.
+
+05:01 - 05:15
+Direct result of training: much fewer parameters, 4.7 million in this case, compared to 175 billion. Another important benefit is that Laura doesn't introduce any inherent latency. You might say, "Hold on, don't we have these?"
+
+05:14 - 05:28
+Additional low-rank matrices on the side. Well, that's true during training. What happens during inference is that since lower updates are additive to the original parameters, we can expand the low-rank matrices by multiplying out the.
+
+05:25 - 05:39
+Low rank bottom. Add the updates to the original parameters. Now we can perform inference literally the same way as with a base model, and there is no additional latency.
+
+05:36 - 05:51
+Definition: When we need to switch tasks, we simply repeat the process. But this time, subtract the updates. By being careful about numerical precisions, we can recover the original parameters.
+
+05:48 - 06:02
+We repeat to load another Laura module. This process can be done in parallel for all parameters and is faster than a single forward pass. This is how we can switch models quickly without.
+
+06:00 - 06:13
+Introducing any additional inference latency. Finally, I want to mention a few engineering ideas enabled by Laura. The first one is to cache many Laur modules in RAM during deployment so model.
+
+06:11 - 06:25
+Switching simply involves data transfer between RAM and VRAM. Since RAM is usually much larger than VRAM, we can cache thousands of Laura modules and never worry about reading from the disk.
+
+06:22 - 06:36
+Again, another idea is to train multiple LUR modules in parallel, each on its own task. This is achieved by sharing the same base model and routing different inputs in a single batch through different.
+
+06:34 - 06:47
+Laura modules. This way, we can batch different Laura jobs together and fully utilize the GPUs. There are several community implementations of this which have linked in the video description.
+
+06:45 - 06:59
+Final idea uses the fact that Lurel models are additive. Imagine a pipeline where a pre-trained model is gradually specialized. Maybe it's first fine-tuned for a particular language, and then a particular domain, and finally...
+
+06:58 - 07:12
+Particular task or even a specific specific user. The adaptive models form a tree. Each non-root node can be a Lura module on top of the sum of its ancestors. The model rank can be larger near the root and smaller near the.
+
+07:10 - 07:24
+Leaves to accommodate different data and sizes. Model switching here becomes tree traversal, and we never have to load the base model more than once. Let me know in the comments if you have any cool ideas.
+
+07:22 - 07:29
+On how Laura can be used or extended. If you just have any questions, I'll see you in the next video.
+

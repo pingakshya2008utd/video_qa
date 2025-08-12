@@ -1,0 +1,116 @@
+1
+00:00:00,240 --> 00:00:07,240
+in this video we will dive into one of the most fundamental link list techniques how to reverse a link list in
+
+2
+00:00:05,240 --> 00:00:11,718
+place without using any extra space after knowing this technique you will be able to solve a variety of lead code
+
+3
+00:00:10,199 --> 00:00:16,679
+problems that require reversing a link list or even just a portion of it I will also share additional lead code problems
+
+4
+00:00:15,080 --> 00:00:21,759
+you can practice to become an expert at reversing a link list so let&#39;s get into it let&#39;s walk through a classic lead
+
+5
+00:00:20,000 --> 00:00:26,719
+code problem to see this in action just a quick note if at any point you feel like pausing the video and trying the
+
+6
+00:00:24,559 --> 00:00:32,238
+problem yourself feel free to do so lead code 206 reverse link list you are given the head of a singly link list and your
+
+7
+00:00:30,320 --> 00:00:37,479
+task is to reverse the list in place for example if the input list is this output would look like this reversing the list
+
+8
+00:00:36,039 --> 00:00:42,558
+means flipping the direction of each pointer so that every node points to its previous node instead of the next an I
+
+9
+00:00:41,159 --> 00:00:48,799
+approach will be to copy the values of the link list into an array reverse the array and then iterate to update the list but this approach requires order of
+
+10
+00:00:47,238 --> 00:00:54,480
+an extra space where n is the size of the list and it isn&#39;t efficient instead we can reverse the list in order of n
+
+11
+00:00:52,759 --> 00:00:59,239
+time and Order of one space using three pointers previous current and next it start with the previous pointer as none
+
+12
+00:00:57,878 --> 00:01:04,040
+since there is no previous node at the beginning current pointer points to the head of the list and the next pointer
+
+13
+00:01:02,198 --> 00:01:09,359
+helps us temporarily store the next node in the list so we don&#39;t lose track while reversing in each iteration save the
+
+14
+00:01:07,759 --> 00:01:14,478
+next node in the next pointer by setting next to current do next reverse the length at the current node by setting
+
+15
+00:01:12,719 --> 00:01:19,519
+current do next to previous move previous pointer to current as we have finished processing this node and move
+
+16
+00:01:17,799 --> 00:01:25,799
+the current pointer to next to process the next node we repeat this process until we have reversed the entire list once current becomes none which means we
+
+17
+00:01:24,560 --> 00:01:32,159
+have reached the end of the list previous will point to the new head of the revers list using this approach we reverse the list in place without using
+
+18
+00:01:30,560 --> 00:01:37,599
+any extra memory other than the threep pointers the time complexity is order of n where n is the number of nodes in the
+
+19
+00:01:35,640 --> 00:01:42,879
+link list the space complexity is order of one since we only use a few pointers and don&#39;t allocate any extra space for
+
+20
+00:01:41,118 --> 00:01:48,560
+ReStore in the list here is how it looks like in code here I&#39;m using Java but you can find code for other popular programming languages in my GitHub
+
+21
+00:01:47,118 --> 00:01:53,959
+repository code or some lead code resources link is in the description it start by initializing previous tunel and
+
+22
+00:01:52,399 --> 00:01:58,840
+current to the head of the link list it create through the list while current is not null which means until we reach the
+
+23
+00:01:56,959 --> 00:02:04,159
+end of the list save the next node by setting next to current next reverse the current notes pointer by setting
+
+24
+00:02:02,239 --> 00:02:09,080
+current. next to previous and move previous to current and current to next for the next iteration once the loop
+
+25
+00:02:07,478 --> 00:02:13,679
+finishes previous will point to the new head of the reverse list so return it there are some more lead code problems
+
+26
+00:02:12,039 --> 00:02:18,959
+you can practice using this approach you can find these problems on algo master. simply head to the practice space search
+
+27
+00:02:17,039 --> 00:02:24,560
+for this pattern or use the filter drop down and start practicing on this platform you can Mark problems as complete or start them for later
+
+28
+00:02:23,080 --> 00:02:30,799
+revision you can also find the links to get YouTube solutions for each problem if you want to check out the full lead code patterns playlist click here don&#39;t
+
+29
+00:02:29,280 --> 00:02:36,920
+forget to like subscribe and hit the Bell icon so you won&#39;t miss my future videos thanks for watching and I will see you in the next one
+

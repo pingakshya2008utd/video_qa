@@ -1,0 +1,42 @@
+Title: Reverse a Linked List In-Place | LeetCode Pattern
+Duration: 155 seconds
+================================================================================
+00:00 - 00:15
+In this video, we will dive into one of the most fundamental linked list techniques: how to reverse a linked list in place without using any extra space. After knowing this technique, you will be able to solve a variety of LeetCode problems that require reversing a linked list or even just a portion of it. I will.
+
+00:13 - 00:26
+Also, share additional LeetCode problems you can practice to become an expert at reversing a linked list. So, let's get into it. Let's walk through a classic LeetCode problem to see this in action. Just a quick note, if at any point you feel like pausing the video and trying the.
+
+00:24 - 00:39
+Problem yourself! Feel free to do so. Lead code 206: Reverse Linked List. You are given the head of a singly linked list, and your task is to reverse the list in place. For example, if the input list is this, output would look like this. Reversing the list means flipping the direction of each.
+
+00:37 - 00:50
+Pointer so that every node points to its previous node instead of the next. An approach will be to copy the values of the linked list into an array, reverse the array, and then iterate to update the list. But this approach requires an extra space of order n, where n is the size of.
+
+00:48 - 01:02
+The list isn't efficient. Instead, we can reverse the list in order of n time and order of one space using three pointers: previous, current, and next. It starts with the previous pointer as none since there is no previous node at the beginning. The current pointer points to the.
+
+01:00 - 01:14
+Head of the list and the next pointer help us temporarily store the next node in the list. So we don't lose track while reversing. In each iteration, save the next node in the next pointer by setting next to current. Do next reverse the length at the current node by setting.
+
+01:12 - 01:27
+Current: Do next to previous. Move previous pointer to current as we have finished processing this node. Move the current pointer to next to process the next node. Repeat this process until we have reversed the entire list. Once current becomes none, which means we have reached the end of the list.
+
+01:25 - 01:39
+Previous will point to the new head of the reverse list. Using this approach, we reverse the list in place without using any extra memory other than the three pointers. The time complexity is order of n, where n is the number of nodes in the linked list. The space complexity is order.
+
+01:37 - 01:52
+Of one, since we only use a few pointers and don't allocate any extra space for ReStore in the list. Here is how it looks like in code. Here I'm using Java, but you can find code for other popular programming languages in my GitHub repository. Code or some lead code resources link is in the description.
+
+01:50 - 02:04
+Start by initializing previous, tunnel, and current to the head of the linked list. Iterate through the list while current is not null, which means until we reach the end of the list. Save the next node by setting next to current next. Reverse the current node's pointer by setting.
+
+02:02 - 02:17
+Current. Next to previous and move previous to current, and current to next for the next iteration. Once the loop finishes, previous will point to the new head of the reverse list, so return it. There are some more LeetCode problems you can practice using this approach. You can find these problems on AlgoMaster.
+
+02:15 - 02:29
+Simply head to the practice space. Search for this pattern or use the filter drop-down and start practicing on this platform. You can mark problems as complete or start them for later revision. You can also find the links to get YouTube solutions for each problem if you want to check out the full lead.
+
+02:27 - 02:36
+Code patterns playlist. Click here! Don't forget to like, subscribe, and hit the bell icon so you won't miss my future videos. Thanks for watching, and I will see you in the next one.
+
