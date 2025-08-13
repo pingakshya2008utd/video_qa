@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Send, Youtube, Globe, Menu, Home, MessageSquare } from 'lucide-react';
 import axios from 'axios';
+import QuizPanel from './QuizPanel';
 
 const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
   const [youtubeUrl, setYoutubeUrl] = useState('');
@@ -23,6 +24,9 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
   // New state for translation
   const [selectedLanguage, setSelectedLanguage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+
+  // Quiz open state
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
   
   // New state for menu
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -373,6 +377,11 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
     }
   }, [chatMessages]);
 
+  const handleOpenQuiz = () => {
+    if (!currentVideo.videoId) return;
+    setIsQuizOpen(true);
+  };
+
   // Format time display (e.g., 2:30)
   const formatTime = (timeInSeconds) => {
     const minutes = Math.floor(timeInSeconds / 60);
@@ -566,7 +575,24 @@ const ImprovedYouTubePlayer = ({ onNavigateToTranslate }) => {
                 'Translate'
               )}
             </button>
+
+            <button
+              onClick={handleOpenQuiz}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={!currentVideo.videoId}
+            >
+              Quiz
+            </button>
           </div>
+
+          {isQuizOpen && (
+            <QuizPanel
+              isOpen={isQuizOpen}
+              videoId={currentVideo.videoId}
+              onClose={() => setIsQuizOpen(false)}
+              onSystemMessage={(msg) => setChatMessages(prev => [...prev, msg])}
+            />
+          )}
         </div>
         
         {/* Chat Section */}

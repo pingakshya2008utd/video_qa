@@ -13,7 +13,7 @@ from moviepy import VideoFileClip
 load_dotenv()
 
 # Setup ElevenLabs client
-ELEVENLABS_API_KEY = "add your api key"
+ELEVENLABS_API_KEY = os.getenv("OPENAI_API_KEY")
 
 
 client = ElevenLabs(api_key=ELEVENLABS_API_KEY)

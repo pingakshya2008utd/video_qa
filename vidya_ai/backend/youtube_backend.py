@@ -9,7 +9,7 @@ import os
 import cv2
 import uuid
 from youtube_utils import download_video, download_transcript, grab_youtube_frame
-from ml_models import OpenAIVisionClient
+from ml_models import GeminiQuizClient
 from typing import Optional
 from translate_elevenlabs import dub_video
 
@@ -45,6 +45,12 @@ class TranslationRequest(BaseModel):
     source_language: str = "en"  # Default source language is English
     target_language: str
     
+class QuizRequest(BaseModel):
+    video_id: str
+    num_questions: int = 5
+    difficulty: str = "medium"  # easy | medium | hard
+    include_explanations: bool = True
+    language: str = "en"
 
 
 @app.get("/")
@@ -153,6 +159,40 @@ async def process_query(query_request: VideoQuery):
     except Exception as e:
         logger.error(f"Error processing query: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to process query: {str(e)}")
+
+
+@app.post("/api/quiz/generate")
+async def generate_quiz(request: QuizRequest):
+    """
+    Generate a structured quiz JSON from a video's transcript using Gemini.
+
+    Request body: QuizRequest
+    Response: Dict containing quiz and metadata.
+    """
+    try:
+        video_id = request.video_id
+        # Ensure transcript is available
+        transcript = download_transcript(video_id)
+        if not transcript:
+            raise HTTPException(status_code=404, detail="Transcript not found for the specified video")
+
+        # Initialize Gemini client
+        quiz_client = GeminiQuizClient()
+
+        quiz = quiz_client.generate_quiz(
+            transcript=transcript,
+            num_questions=request.num_questions,
+            difficulty=request.difficulty,
+            include_explanations=request.include_explanations,
+            language=request.language,
+        )
+
+        return quiz
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating quiz: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate quiz: {str(e)}")
 
 
 def extract_youtube_id(url: str) -> str:

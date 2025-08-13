@@ -1,0 +1,3 @@
+vidya_ai/frontend/node_modules/
+vidya_ai/backend/__pycache__/*
+.env
