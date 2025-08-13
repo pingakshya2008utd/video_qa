@@ -240,8 +240,6 @@ class GeminiQuizClient:
         for index, item in enumerate(quiz_items):
             if not isinstance(item, dict):
                 continue
-            if item.get("type") != "mcq":
-                item["type"] = "mcq"
             # Ensure id
             item.setdefault("id", f"q{index+1}")
             # Ensure options list
