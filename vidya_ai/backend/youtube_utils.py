@@ -6,6 +6,7 @@ import pygame
 import subprocess
 import threading
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.formatters import TextFormatter
 
 
 def download_video(youtube_url, output_path="videos", output_filename="video65", resolution="720"):
@@ -108,9 +109,10 @@ def download_transcript(video_url_or_id):
             video_id = video_url_or_id
 
         # Fetch transcript 
-        transcript = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
-        transcript_text = " ".join([item['text'] for item in transcript])
-        #print(transcript_text)
+        transcript_api = YouTubeTranscriptApi()
+        transcript = transcript_api.fetch(video_id, languages=["en"])
+        formatter = TextFormatter()
+        transcript_text = formatter.format_transcript(transcript)
         return transcript_text
     except Exception as e:
         print(f"Error fetching transcript: {e}")
