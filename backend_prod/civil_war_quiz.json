@@ -1,0 +1,88 @@
+{
+  "questions": [
+    {
+      "question": "What was the primary economic difference between the Northern and Southern states before the Civil War?",
+      "options": [
+        "The North was industrialized, while the South relied on agriculture.",
+        "The North focused on agriculture, while the South was industrialized.",
+        "Both regions were equally industrialized.",
+        "The South had a mixed economy of agriculture and manufacturing."
+      ],
+      "answer": "The North was industrialized, while the South relied on agriculture.",
+      "explanation": "The Northern states had developed a more industrialized economy based on manufacturing and commerce, while the Southern states relied heavily on an agricultural economy sustained by slave labor."
+    },
+    {
+      "question": "What event marked the official start of the American Civil War?",
+      "options": [
+        "The election of Abraham Lincoln in 1860",
+        "The attack on Fort Sumter in 1861",
+        "The signing of the Emancipation Proclamation",
+        "The Battle of Gettysburg"
+      ],
+      "answer": "The attack on Fort Sumter in 1861",
+      "explanation": "The war officially began on April 12, 1861, when Confederate forces attacked Fort Sumter in Charleston Harbor, South Carolina."
+    },
+    {
+      "question": "Which battle is considered the bloodiest single-day battle in American history?",
+      "options": [
+        "The Battle of Gettysburg",
+        "The Battle of Antietam",
+        "The Battle of Shiloh",
+        "The First Battle of Bull Run"
+      ],
+      "answer": "The Battle of Antietam",
+      "explanation": "The Battle of Antietam on September 17, 1862, was the bloodiest single-day battle in American history, with over 22,700 casualties."
+    },
+    {
+      "question": "What was the significance of the Emancipation Proclamation?",
+      "options": [
+        "It immediately freed all slaves in the United States.",
+        "It declared slaves in rebellious states to be free.",
+        "It ended the Civil War.",
+        "It allowed Southern states to rejoin the Union."
+      ],
+      "answer": "It declared slaves in rebellious states to be free.",
+      "explanation": "The Emancipation Proclamation, issued on January 1, 1863, declared slaves in rebellious states to be free, transforming the war into a moral crusade against slavery."
+    },
+    {
+      "question": "What was the outcome of the Battle of Gettysburg?",
+      "options": [
+        "It was a Confederate victory that led to the capture of Washington, D.C.",
+        "It ended with Lee's retreat back to Virginia.",
+        "It resulted in the Union's capture of Richmond.",
+        "It was an inconclusive battle with no clear winner."
+      ],
+      "answer": "It ended with Lee's retreat back to Virginia.",
+      "explanation": "The Battle of Gettysburg ended with Lee's retreat back to Virginia, marking his second and final invasion of the North."
+    },
+    {
+      "question": "How did the Civil War affect the Southern economy?",
+      "options": [
+        "It accelerated industrialization in the South.",
+        "It devastated the Southern economy and destroyed the plantation system.",
+        "It had little impact on the Southern economy.",
+        "It led to a boom in Southern agriculture."
+      ],
+      "answer": "It devastated the Southern economy and destroyed the plantation system.",
+      "explanation": "The war accelerated Northern industrialization while devastating the Southern economy, destroying the plantation system and transforming Southern society."
+    },
+    {
+      "question": "What was a key factor in Lincoln's re-election in 1864?",
+      "options": [
+        "The capture of Richmond by Union forces",
+        "Sherman's capture of Atlanta",
+        "The surrender of Lee at Appomattox",
+        "The signing of the Thirteenth Amendment"
+      ],
+      "answer": "Sherman's capture of Atlanta",
+      "explanation": "Sherman's capture of Atlanta in September 1864 provided a crucial boost to Lincoln's re-election campaign."
+    }
+  ],
+  "metadata": {
+    "num_questions": 7,
+    "difficulty": "medium",
+    "language": "en",
+    "video_context_excerpt": "\nWelcome to today's lecture on the American Civil War, one of the most defining conflicts in United States history. The Civil War lasted from 1861 to 1865 and fundamentally transformed the nation.\n\nThe roots of the Civil War can be traced back to deep-seated tensions between the Northern and Southern states over slavery, states' rights, and economic differences. The Northern states had developed a more industrialized economy based on manufacturing and commerce, while the Southern states relied h"
+  },
+  "quiz": []
+}
