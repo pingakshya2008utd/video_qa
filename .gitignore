@@ -66,4 +66,5 @@ backend/dmypy.json
 # pytest
 backend/.pytest_cache/
 backend_prod/.env
-backend_prod/__pycache__/*
+backend_prod/__pycache__/
+video_qa/frontend_prod/node_modules/*
