@@ -3,7 +3,9 @@ import os
 from openai import OpenAI
 from typing import List, Dict
 import sys
+from dotenv import load_dotenv
 
+load_dotenv()
 
 # Initialize OpenAI client (reads OPENAI_API_KEY from environment)
 client = OpenAI()

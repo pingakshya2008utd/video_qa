@@ -17,6 +17,7 @@ backend/dist/
 backend/build/
 backend/eggs/
 backend/*.egg
+backend_prod/va_venv/
 
 # IDE
 .idea/
@@ -52,6 +53,7 @@ frontend/node_modules/
 frontend/npm-debug.log*
 frontend/yarn-debug.log*
 frontend/yarn-error.log*
+frontend_prod/node_modules/
 
 # Jupyter Notebook
 backend/.ipynb_checkpoints
@@ -63,3 +65,5 @@ backend/dmypy.json
 
 # pytest
 backend/.pytest_cache/
+backend_prod/.env
+backend_prod/__pycache__/*
