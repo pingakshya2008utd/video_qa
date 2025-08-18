@@ -63,10 +63,13 @@ backend/.mypy_cache/
 backend/.dmypy.json
 backend/dmypy.json
 
-# pytest
 backend/.pytest_cache/
-backend_prod/.env
-backend_prod/__pycache__/
-frontend_prod/node_modules/
-backend_prod/videos/
 
+# pytest
+backend_prod/.env
+backend_prod/videos/
+backend_prod/__pycache__/
+backend_prod/alembic/__pycache__/
+backend_prod/alembic/versions/__pycache__/
+
+frontend_prod/node_modules/

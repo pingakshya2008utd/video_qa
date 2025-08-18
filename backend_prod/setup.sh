@@ -5,7 +5,7 @@ echo "🚀 Setting up YouTube FastAPI App..."
 
 # Update system and install essentials
 apt update && apt upgrade -y
-apt install -y python3 python3-pip python3-venv ffmpeg
+apt install -y python3 python3-pip python3-venv ffmpeg libpq-dev
 
 # Create app directory
 mkdir -p /opt/youtube-app
@@ -16,7 +16,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 # Install Python packages
-pip install fastapi uvicorn yt-dlp opencv-python youtube-transcript-api requests httpx openai python-multipart
+pip install fastapi uvicorn yt-dlp opencv-python youtube-transcript-api requests httpx openai python-multipart boto3 python-dotenv sqlalchemy psycopg2-binary
 
 # Create directories
 mkdir -p videos frames output

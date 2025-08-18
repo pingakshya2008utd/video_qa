@@ -49,7 +49,9 @@ def download_youtube_video(youtube_url) : #, output_path="videos", output_filena
         #video_response = requests.get(download_url)
 
         
-        filename = f"{video_id}.mp4"
+        # Ensure videos directory exists
+        os.makedirs("videos", exist_ok=True)
+        filename = os.path.join("videos", f"{video_id}.mp4")
 
         with requests.get(download_url, stream=True) as video_response:
             video_response.raise_for_status()  # Raise exception for HTTP errors
@@ -144,7 +146,7 @@ def extract_youtube_id(url: str) -> str:
 
 
 
-def download_video(youtube_url, output_path=".", debug=False):
+def download_video(youtube_url, output_path="videos", debug=False):
     """Simple YouTube video downloader using RapidAPI with progress checking"""
     
     from urllib.parse import quote

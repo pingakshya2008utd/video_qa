@@ -55,7 +55,7 @@ async def add_security_headers(request, call_next):
     
     return response
 
-pp.add_middleware(
+app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://d1xrorvpgizypa.cloudfront.net","https://vidyaai.co","http://localhost:5173", "https://www.vidyaai.co"],  # Your React app URL
     allow_credentials=True,

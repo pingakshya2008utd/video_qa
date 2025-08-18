@@ -45,9 +45,13 @@ The application follows a modern client-server architecture:
 
 ### Technology Stack
 - **Framework**: FastAPI (Python)
-- **AI Models**: OpenAI GPT-4o, GPT-3.5-turbo
-- **Video Processing**: yt-dlp, OpenCV
-- **File Management**: Local storage with organized directories
+- **Database**: SQLAlchemy with PostgreSQL support (JSONB columns)
+- **AI Models**: OpenAI GPT-4o, GPT-3.5-turbo, Whisper-1
+- **Video Processing**: yt-dlp, OpenCV, RapidAPI YouTube services
+- **Cloud Storage**: AWS S3 with presigned URLs
+- **File Management**: Local storage + S3 cloud storage
+- **Authentication**: Cookie-based YouTube authentication
+- **Background Tasks**: ThreadPoolExecutor for async operations
 - **CORS**: Cross-origin resource sharing enabled
 
 ### Core Components
@@ -56,14 +60,32 @@ The application follows a modern client-server architecture:
 The primary FastAPI application that handles all video processing and AI interactions.
 
 **Key Features:**
-- YouTube video download and processing
-- Transcript extraction and formatting
-- AI-powered video analysis
-- Quiz generation
-- Translation services
-- Background task management
+- YouTube video download and processing with background tasks
+- User video upload to S3 with automatic transcription
+- Transcript extraction, formatting, and AI-powered enhancement
+- Video frame extraction and analysis
+- AI-powered video chat and query processing
+- Interactive quiz generation
+- Video gallery and folder organization
+- Translation services (placeholder)
+- Background task management with status tracking
+- S3 integration with presigned URLs
 
-#### 2. ML Models (`ml_models.py`)
+#### 2. Database Models (`models.py`, `schemas.py`, `db.py`)
+SQLAlchemy models for data persistence with PostgreSQL support.
+
+**Models:**
+- `Video`: Stores video metadata, transcripts, and organization
+- `Folder`: Hierarchical folder structure for video organization
+
+**Key Features:**
+- Support for both YouTube and uploaded videos
+- JSONB columns for flexible transcript and status storage
+- Automatic UUID generation
+- Timestamp tracking
+- Folder-based organization system
+
+#### 3. ML Models (`ml_models.py`)
 Handles all AI model interactions using OpenAI's API.
 
 **Classes:**
@@ -79,41 +101,79 @@ ask_text_only(prompt, context="")
 ask_with_image(prompt, image_path, context="")
 
 # Quiz generation
-generate_quiz(video_id, difficulty="medium")
+generate_quiz(transcript, num_questions=5, difficulty="medium", 
+              include_explanations=True, language="en")
 ```
 
-#### 3. YouTube Utilities (`youtube_utils.py`)
+#### 4. YouTube Utilities (`youtube_utils.py`)
 Comprehensive YouTube video processing utilities.
 
 **Key Functions:**
-- `download_youtube_video(url)`: Downloads videos using RapidAPI
-- `grab_youtube_frame(video_id, timestamp)`: Extracts video frames
-- `download_transcript_api(video_id)`: Fetches video transcripts
-- `format_transcript_data(transcript)`: Formats transcripts with timestamps
+- `download_video(url)`: Downloads videos using yt-dlp
+- `download_youtube_video(url)`: Downloads videos using RapidAPI (fallback)
+- `grab_youtube_frame(video_path, timestamp, output_path)`: Extracts video frames
+- `download_transcript_api(video_id)`: Fetches video transcripts via RapidAPI
+- `download_transcript_api1(video_id)`: Alternative transcript API
+- `format_transcript_data(transcript)`: Basic transcript formatting
+- `extract_youtube_id(url)`: Extracts video ID from YouTube URLs
 
-#### 4. Transcript Formatting (`format_transcript.py`)
-Intelligent transcript processing and formatting.
+#### 5. Advanced Transcript Formatting (`format_transcript.py`)
+AI-powered transcript processing and enhancement.
+
+**Key Functions:**
+- `create_formatted_transcript(json_data, video_id)`: AI-enhanced transcript formatting
 
 **Features:**
-- Timestamp-based formatting
-- Speaker identification
-- Content segmentation
-- SRT format support
+- AI-powered content enhancement and structuring
+- Progress tracking for long transcripts
+- Chunk-based processing for large content
+- Background task integration
+- Timestamp preservation and enhancement
+- Intelligent content segmentation
 
 ### API Endpoints
 
-#### Video Processing
+#### Core Status
+- `GET /` - Health check endpoint
+
+#### YouTube Video Processing
 - `POST /api/youtube/info` - Get video information and transcript
-- `POST /api/youtube/query` - Ask questions about video content
-- `POST /api/youtube/frame` - Analyze specific video frames
-- `POST /api/youtube/quiz` - Generate quizzes from video content
+- `GET /api/youtube/download-info` - Get YouTube video download information
+- `GET /api/youtube/download-status/{video_id}` - Check video download status
+- `GET /api/youtube/formatting-status/{video_id}` - Check transcript formatting status
+- `GET /api/youtube/formatted-transcript/{video_id}` - Get AI-formatted transcript
+- `POST /api/youtube/upload-cookies` - Upload YouTube cookies for authentication
 
-#### Translation
-- `POST /api/translate` - Translate video content between languages
+#### Video Query & Analysis
+- `POST /api/query/video` - Ask questions about video content (text or image-based)
+- `POST /api/query/translate` - Translate video content (placeholder endpoint)
+- `GET /api/query/translate/{job_id}` - Get translation job status
 
-#### File Management
-- `GET /api/videos/{video_id}` - Download processed videos
-- `GET /api/frames/{frame_id}` - Access video frames
+#### Quiz Generation
+- `POST /api/quiz/generate` - Generate interactive quizzes from video content
+
+#### User Video Management
+- `POST /api/user-videos/upload` - Upload user videos to S3 with transcription and progress tracking
+- `GET /api/user-videos/upload-status/{video_id}` - Check upload progress and status
+- `GET /api/user-videos/list` - List user's uploaded videos
+- `GET /api/user-videos/info` - Get information about uploaded video
+
+#### File Serving
+- `GET /api/videos/{video_id}` - Serve downloaded video files
+- `GET /api/frames/{frame_filename}` - Serve extracted video frames
+- `GET /api/translated_videos/{job_id}/{file_name}` - Serve translated video files
+
+#### Storage & Cloud
+- `GET /api/storage/presign` - Generate presigned URLs for S3 objects
+
+#### Gallery & Organization
+- `POST /api/folders` - Create video folders
+- `GET /api/folders` - List user folders
+- `GET /api/gallery` - List videos in gallery with folder filtering
+- `POST /api/gallery/move` - Move videos between folders
+
+#### Debug & Development
+- `GET /api/debug/transcript-raw/{video_id}` - Debug transcript API responses
 
 ## Frontend Documentation
 
@@ -209,6 +269,20 @@ App.jsx
 - **Object Recognition**: Identify objects, people, and scenes
 - **Contextual Questions**: Ask about specific visual elements
 
+### 6. User Video Management
+- **Video Upload**: Upload personal videos with automatic transcription and real-time progress tracking
+- **Upload Progress**: Real-time status updates during file processing, transcription, and cloud upload
+- **Cloud Storage**: S3 integration with presigned URLs for secure access
+- **Automatic Thumbnails**: Generate thumbnails from uploaded videos
+- **Whisper Transcription**: OpenAI Whisper-1 for accurate speech-to-text
+- **Gallery Organization**: Folder-based video organization system
+
+### 7. Background Processing
+- **Async Downloads**: Non-blocking video downloads with status tracking
+- **AI Transcript Enhancement**: Background AI-powered transcript formatting
+- **Progress Tracking**: Real-time status updates for long-running tasks
+- **Thread Pool Management**: Efficient resource utilization
+
 ## API Reference
 
 ### Authentication
@@ -216,14 +290,29 @@ All API endpoints require proper CORS configuration and may require authenticati
 
 ### Request/Response Formats
 
-#### Video Information Request
+#### Video Information Request (`POST /api/youtube/info`)
+**Request:**
 ```json
 {
-  "url": "https://www.youtube.com/watch?v=VIDEO_ID"
+  "url": "https://www.youtube.com/watch?v=VIDEO_ID",
+  "user_id": "optional_user_id"
 }
 ```
 
-#### Video Query Request
+**Response:**
+```json
+{
+  "video_id": "VIDEO_ID",
+  "title": "Video Title",
+  "url": "https://www.youtube.com/watch?v=VIDEO_ID",
+  "transcript": "Full video transcript...",
+  "embed_url": "https://www.youtube.com/embed/VIDEO_ID?enablejsapi=1",
+  "download_status": "Video download started in background"
+}
+```
+
+#### Video Query Request (`POST /api/query/video`)
+**Request:**
 ```json
 {
   "video_id": "VIDEO_ID",
@@ -233,12 +322,130 @@ All API endpoints require proper CORS configuration and may require authenticati
 }
 ```
 
-#### Quiz Generation Request
+**Response:**
+```json
+{
+  "response": "AI-generated response to the query...",
+  "video_id": "VIDEO_ID",
+  "timestamp": 120.5,
+  "query_type": "text"
+}
+```
+
+#### Quiz Generation Request (`POST /api/quiz/generate`)
+**Request:**
 ```json
 {
   "video_id": "VIDEO_ID",
+  "num_questions": 5,
   "difficulty": "medium",
-  "num_questions": 5
+  "include_explanations": true,
+  "language": "en"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "video_id": "VIDEO_ID",
+  "quiz": [
+    {
+      "id": "q1",
+      "question": "What is the main topic?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "answer": "Option A",
+      "difficulty": "medium",
+      "explanation": "Detailed explanation..."
+    }
+  ],
+  "message": "Successfully generated 5 questions"
+}
+```
+
+#### User Video Upload Request (`POST /api/user-videos/upload`)
+**Request (multipart/form-data):**
+- `user_id`: string (form field)
+- `file`: video file upload
+
+**Response:**
+```json
+{
+  "success": true,
+  "video_id": "generated-uuid",
+  "title": "Uploaded Video.mp4",
+  "video_url": "presigned-s3-url",
+  "thumbnail_url": "presigned-thumbnail-url",
+  "has_transcript": true,
+  "formatting_status": "started"
+}
+```
+
+#### Upload Status Request (`GET /api/user-videos/upload-status/{video_id}`)
+**Response:**
+```json
+{
+  "status": "processing",
+  "message": "Generating thumbnail...",
+  "progress": 50,
+  "current_step": "generating_thumbnail",
+  "total_steps": 6
+}
+```
+
+**Possible Status Values:**
+- `starting` - Upload initialization
+- `processing` - Upload in progress
+- `completed` - Upload completed successfully
+- `failed` - Upload failed with error details
+
+**Processing Steps:**
+1. `initializing` - Setting up upload process
+2. `saving_file` - Saving uploaded file locally
+3. `preparing_upload` - Preparing for cloud upload
+4. `uploading_video` - Uploading video to S3
+5. `generating_thumbnail` - Creating video thumbnail
+6. `transcribing` - Converting audio to text
+7. `finalizing` - Completing upload process
+
+#### Folder Creation Request (`POST /api/folders`)
+**Request:**
+```json
+{
+  "user_id": "user123",
+  "name": "My Folder",
+  "parent_id": null,
+  "source_type": "youtube"
+}
+```
+
+**Response:**
+```json
+{
+  "id": "folder-uuid",
+  "user_id": "user123",
+  "name": "My Folder",
+  "parent_id": null,
+  "source_type": "youtube"
+}
+```
+
+#### Translation Request (`POST /api/query/translate`)
+**Request:**
+```json
+{
+  "youtube_url": "https://www.youtube.com/watch?v=VIDEO_ID",
+  "source_language": "en",
+  "target_language": "es"
+}
+```
+
+**Response:**
+```json
+{
+  "status": "not_implemented",
+  "job_id": "uuid",
+  "message": "Translation feature not implemented yet..."
 }
 ```
 
@@ -266,15 +473,32 @@ Create a `.env` file with:
 ```
 OPENAI_API_KEY=your_openai_api_key
 RAPIDAPI_KEY=your_rapidapi_key
+AWS_S3_BUCKET=your_s3_bucket_name
+AWS_S3_REGION=us-east-1
+AWS_S3_ENDPOINT=optional_custom_s3_endpoint
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+DATABASE_URL=postgresql://user:password@localhost/vidyai
+PORT=8000
 ```
 
 3. **Directory Structure**
 ```
 backend_prod/
-├── videos/          # Downloaded videos
-├── frames/          # Extracted video frames
-├── output/          # Generated content
-└── va_venv/         # Virtual environment
+├── videos/              # Downloaded and uploaded videos
+├── frames/              # Extracted video frames
+├── output/              # Generated content and translations
+├── va_venv/             # Virtual environment
+├── youtube_backend.py   # Main FastAPI application
+├── main.py              # Alternative entry point
+├── ml_models.py         # AI model integrations
+├── youtube_utils.py     # YouTube processing utilities
+├── format_transcript.py # AI transcript enhancement
+├── db.py               # Database configuration
+├── models.py           # SQLAlchemy models
+├── schemas.py          # Pydantic schemas
+├── system_prompt.py    # AI system prompts
+└── setup.sh           # Deployment setup script
 ```
 
 ### Frontend Setup
@@ -297,17 +521,29 @@ Configure Firebase in `src/firebase/config.js` for authentication.
 
 ### Running the Application
 
-1. **Start Backend**
+1. **Setup Database** (if using PostgreSQL)
 ```bash
-cd video_qa/backend_prod
-python youtube_backend.py
+# Create database and run migrations if needed
+createdb vidyai
 ```
 
-2. **Start Frontend**
+2. **Start Backend**
+```bash
+cd video_qa/backend_prod
+source va_venv/bin/activate  # On Windows: va_venv\Scripts\activate
+python youtube_backend.py
+# Alternative: python main.py
+# For production: ./setup.sh
+```
+
+3. **Start Frontend**
 ```bash
 cd video_qa/frontend_prod
 npm run dev
 ```
+
+4. **Upload YouTube Cookies** (if needed for restricted videos)
+Use the `/api/youtube/upload-cookies` endpoint to upload cookie files for authenticated YouTube access.
 
 ## Deployment
 
@@ -360,21 +596,42 @@ The frontend can be deployed to:
    - Check RapidAPI key validity
    - Verify YouTube URL format
    - Ensure sufficient disk space
+   - Upload YouTube cookies for restricted videos
+   - Check background download status via API
 
 2. **AI Model Errors**
    - Verify OpenAI API key
    - Check API rate limits
    - Monitor token usage
+   - Ensure transcript availability before queries
 
-3. **CORS Issues**
+3. **S3 Storage Issues**
+   - Verify AWS credentials and bucket permissions
+   - Check S3 bucket configuration
+   - Ensure proper IAM policies for presigned URLs
+   - Monitor S3 storage costs
+
+4. **Database Connection Problems**
+   - Verify PostgreSQL connection string
+   - Check database permissions
+   - Ensure SQLAlchemy models are up to date
+   - Run database migrations if needed
+
+5. **CORS Issues**
    - Update allowed origins in backend
    - Check frontend API URL configuration
    - Verify HTTPS/HTTP protocol matching
 
-4. **Authentication Problems**
+6. **Authentication Problems**
    - Check Firebase configuration
    - Verify domain whitelist
    - Test with demo mode
+
+7. **Background Task Issues**
+   - Monitor ThreadPoolExecutor status
+   - Check formatting and download status endpoints
+   - Verify sufficient system resources
+   - Review application logs for task failures
 
 ### Performance Optimization
 

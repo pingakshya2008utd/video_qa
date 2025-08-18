@@ -31,7 +31,11 @@ def group_subtitles(transcription: List[Dict], group_duration: float = 10.0) -> 
     
     for item in transcription:
         start_time = item['start']
-        end_time = start_time + item['dur']
+        # Handle both 'dur' (duration) and 'end' (end time) formats
+        if 'dur' in item:
+            end_time = start_time + item['dur']
+        else:
+            end_time = item['end']
         
         if current_start is None:
             current_start = start_time
@@ -42,10 +46,11 @@ def group_subtitles(transcription: List[Dict], group_duration: float = 10.0) -> 
             current_end = end_time
         else:
             # Finalize current group
+            combined_text = ' '.join([item.get('text', item.get('subtitle', '')) for item in current_group])
             groups.append({
                 'start': current_start,
                 'end': current_end,
-                'text': ' '.join([subtitle['subtitle'] for subtitle in current_group])
+                'text': combined_text
             })
             
             # Start new group
@@ -55,10 +60,11 @@ def group_subtitles(transcription: List[Dict], group_duration: float = 10.0) -> 
     
     # Add the last group
     if current_group:
+        combined_text = ' '.join([item.get('text', item.get('subtitle', '')) for item in current_group])
         groups.append({
             'start': current_start,
             'end': current_end,
-            'text': ' '.join([subtitle['subtitle'] for subtitle in current_group])
+            'text': combined_text
         })
     
     return groups
@@ -74,8 +80,21 @@ def format_with_openai(text_chunks: List[str], video_id: str = None) -> List[str
         # Import here to avoid circular imports
         try:
             sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-            from youtube_backend import formatting_status
-            formatting_status[video_id]["total_chunks"] = total_chunks
+            from youtube_backend import update_formatting_status, SessionLocal
+            db = SessionLocal()
+            try:
+                # Update total chunks in status
+                update_formatting_status(db, video_id, {
+                    "status": "formatting",
+                    "message": f"AI formatting in progress... 0/{total_chunks} chunks (0%)",
+                    "formatted_transcript": None,
+                    "error": None,
+                    "progress": 0,
+                    "total_chunks": total_chunks,
+                    "current_chunk": 0
+                })
+            finally:
+                db.close()
         except ImportError:
             pass  # Continue without progress tracking if import fails
     
@@ -85,12 +104,21 @@ def format_with_openai(text_chunks: List[str], video_id: str = None) -> List[str
         # UPDATE progress if video_id provided
         if video_id:
             try:
-                current_progress = int((i / total_chunks) * 100)
-                formatting_status[video_id].update({
-                    "current_chunk": i + 1,
-                    "progress": current_progress,
-                    "message": f"AI formatting in progress... {i+1}/{total_chunks} chunks ({current_progress}%)"
-                })
+                from youtube_backend import update_formatting_status, SessionLocal
+                db = SessionLocal()
+                try:
+                    current_progress = int((i / total_chunks) * 100)
+                    update_formatting_status(db, video_id, {
+                        "status": "formatting",
+                        "message": f"AI formatting in progress... {i+1}/{total_chunks} chunks ({current_progress}%)",
+                        "formatted_transcript": None,
+                        "error": None,
+                        "progress": current_progress,
+                        "total_chunks": total_chunks,
+                        "current_chunk": i + 1
+                    })
+                finally:
+                    db.close()
             except:
                 pass  # Continue without progress updates if there's an error
         
@@ -129,8 +157,62 @@ def format_with_openai(text_chunks: List[str], video_id: str = None) -> List[str
     return formatted_chunks
 
 
-def create_formatted_transcript(transcript_data: Dict, output_file: str = "formatted_transcript.txt", video_id: str = None):
+def convert_plain_text_to_transcript_data(plain_text: str, title: str = "Uploaded Video", duration: int = 0) -> Dict:
+    """Convert plain text transcript to the format expected by create_formatted_transcript"""
+    # Split text into sentences/chunks for processing
+    sentences = []
+    if plain_text:
+        # Split by sentence endings, but keep reasonable chunk sizes
+        import re
+        # Split by sentence boundaries but maintain reasonable chunk sizes
+        sentence_splits = re.split(r'(?<=[.!?])\s+', plain_text)
+        
+        # Group sentences into chunks of reasonable size (roughly 15-30 seconds worth)
+        chunk_size = 3  # sentences per chunk
+        for i in range(0, len(sentence_splits), chunk_size):
+            chunk_text = ' '.join(sentence_splits[i:i + chunk_size]).strip()
+            if chunk_text:
+                sentences.append(chunk_text)
+    
+    # Create fake timestamps - each chunk gets ~15 seconds
+    chunk_duration = 15.0
+    transcription = []
+    
+    for i, text in enumerate(sentences):
+        start_time = i * chunk_duration
+        end_time = start_time + chunk_duration
+        
+        transcription.append({
+            'text': text,
+            'start': start_time,
+            'end': end_time
+        })
+    
+    # If we have actual duration, adjust the last timestamp
+    if duration > 0 and transcription:
+        transcription[-1]['end'] = min(transcription[-1]['end'], duration)
+    
+    # Create the expected format
+    return [{
+        'title': title,
+        'lengthInSeconds': duration or (len(sentences) * chunk_duration),
+        'transcription': transcription
+    }]
+
+
+def create_formatted_transcript(transcript_data, output_file: str = "formatted_transcript.txt", video_id: str = None):
     """Create formatted transcript with timestamps"""
+    # Handle both dict and plain text input
+    if isinstance(transcript_data, str):
+        # Plain text input - convert to expected format
+        transcript_data = convert_plain_text_to_transcript_data(transcript_data, "Uploaded Video")
+    elif isinstance(transcript_data, dict) and 'plain_text' in transcript_data:
+        # Handle special format for uploaded videos
+        plain_text = transcript_data['plain_text']
+        title = transcript_data.get('title', 'Uploaded Video')
+        duration = transcript_data.get('duration', 0)
+        transcript_data = convert_plain_text_to_transcript_data(plain_text, title, duration)
+    
     print(f"transcript_data: {transcript_data[0]}")
     
     # Group subtitles into manageable chunks
