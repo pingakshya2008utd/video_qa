@@ -200,7 +200,7 @@ def convert_plain_text_to_transcript_data(plain_text: str, title: str = "Uploade
     }]
 
 
-def create_formatted_transcript(transcript_data, output_file: str = "formatted_transcript.txt", video_id: str = None):
+def create_formatted_transcript(transcript_data, output_file: str = None, video_id: str = None):
     """Create formatted transcript with timestamps"""
     # Handle both dict and plain text input
     if isinstance(transcript_data, str):
@@ -238,11 +238,13 @@ def create_formatted_transcript(transcript_data, output_file: str = "formatted_t
         formatted_transcript.append(f"{start_time} - {end_time}\n")
         formatted_transcript.append(f"{formatted_text}\n\n")
     
-    # Save to file
-    with open(output_file, 'w', encoding='utf-8') as f:
-        f.writelines(formatted_transcript)
-    
-    print(f"Formatted transcript saved to {output_file}")
+    # Save to file only if output_file is specified
+    if output_file:
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.writelines(formatted_transcript)
+        print(f"Formatted transcript saved to {output_file}")
+    else:
+        print("Formatted transcript created (not saved to file)")
     
     return formatted_transcript
 

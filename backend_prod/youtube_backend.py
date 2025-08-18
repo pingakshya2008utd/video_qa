@@ -3,7 +3,7 @@ from fastapi import FastAPI, HTTPException, BackgroundTasks, Response
 from fastapi import UploadFile, File, Form, Depends
 import shutil
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from pydantic import BaseModel
 import logging
 import re
@@ -258,14 +258,164 @@ def update_transcript_cache(db: Session, video_id: str, transcript_data: str, js
     db.commit()
 
 def get_downloaded_video_path(db: Session, video_id: str) -> str:
-    """Get downloaded video path from database"""
+    """Get downloaded video path from database or S3"""
     video = db.query(Video).filter(Video.id == video_id).first()
-    if video and video.download_path and os.path.exists(video.download_path):
+    if not video:
+        return None
+    
+    # Check if video is stored in S3
+    if video.s3_key and s3_client and AWS_S3_BUCKET:
+        # Generate presigned URL for S3 video
+        try:
+            return s3_presign_url(video.s3_key, expires_in=3600)
+        except Exception as e:
+            logger.error(f"Failed to generate S3 presigned URL for {video_id}: {e}")
+            return None
+    
+    # Check if video is stored locally
+    if video.download_path and os.path.exists(video.download_path):
         return video.download_path
+    
     return None
 
+def cleanup_local_videos():
+    """Clean up local video files that have been uploaded to S3"""
+    db = SessionLocal()
+    try:
+        # Find videos that have S3 keys but still have local files
+        videos = db.query(Video).filter(
+            Video.s3_key.isnot(None),
+            Video.download_path.isnot(None)
+        ).all()
+        
+        cleaned_videos = 0
+        cleaned_thumbnails = 0
+        cleaned_transcripts = 0
+        
+        for video in videos:
+            # Clean up local video file
+            if video.download_path and os.path.exists(video.download_path):
+                try:
+                    os.remove(video.download_path)
+                    logger.info(f"Cleaned up local video file for {video.id}: {video.download_path}")
+                    video.download_path = None
+                    cleaned_videos += 1
+                except Exception as e:
+                    logger.error(f"Failed to clean up local video file {video.download_path}: {e}")
+            
+            # Clean up local thumbnail files
+            thumb_path = os.path.join(frames_path, f"{video.id}_thumb.jpg")
+            if os.path.exists(thumb_path) and video.thumb_key:
+                try:
+                    os.remove(thumb_path)
+                    logger.info(f"Cleaned up local thumbnail for {video.id}: {thumb_path}")
+                    cleaned_thumbnails += 1
+                except Exception as e:
+                    logger.error(f"Failed to clean up local thumbnail {thumb_path}: {e}")
+            
+            # Clean up local transcript files
+            transcript_path = os.path.join(output_path, f"{video.id}_formatted_transcript.txt")
+            if os.path.exists(transcript_path) and video.transcript_s3_key:
+                try:
+                    os.remove(transcript_path)
+                    logger.info(f"Cleaned up local transcript for {video.id}: {transcript_path}")
+                    cleaned_transcripts += 1
+                except Exception as e:
+                    logger.error(f"Failed to clean up local transcript {transcript_path}: {e}")
+        
+        db.commit()
+        logger.info(f"Local cleanup completed: {cleaned_videos} videos, {cleaned_thumbnails} thumbnails, {cleaned_transcripts} transcripts")
+        
+    except Exception as e:
+        logger.error(f"Local video cleanup failed: {e}")
+    finally:
+        db.close()
+
+def migrate_local_videos_to_s3():
+    """Migrate existing local videos to S3"""
+    if not s3_client or not AWS_S3_BUCKET:
+        logger.warning("S3 not configured, skipping migration")
+        return
+    
+    db = SessionLocal()
+    try:
+        # Find videos that have local files but no S3 keys
+        videos = db.query(Video).filter(
+            Video.download_path.isnot(None),
+            Video.s3_key.is_(None)
+        ).all()
+        
+        migrated_count = 0
+        for video in videos:
+            if video.download_path and os.path.exists(video.download_path):
+                try:
+                    # Generate S3 key for video
+                    s3_key = f"youtube_videos/{video.id}.mp4"
+                    
+                    # Upload video to S3
+                    logger.info(f"Migrating video {video.id} to S3: {s3_key}")
+                    s3_upload_file(video.download_path, s3_key, content_type="video/mp4")
+                    
+                    # Generate and upload thumbnail if not already uploaded
+                    thumb_key = None
+                    if not video.thumb_key:
+                        thumb_path = os.path.join(frames_path, f"{video.id}_thumb.jpg")
+                        if not os.path.exists(thumb_path):
+                            # Generate thumbnail from video
+                            if generate_thumbnail(video.download_path, thumb_path, ts_seconds=1.0):
+                                thumb_key = f"youtube_thumbnails/{video.id}.jpg"
+                                logger.info(f"Uploading thumbnail to S3: {thumb_key}")
+                                s3_upload_file(thumb_path, thumb_key, content_type="image/jpeg")
+                                os.remove(thumb_path)
+                                logger.info(f"Deleted local thumbnail: {thumb_path}")
+                    
+                    # Upload formatted transcript if not already uploaded
+                    transcript_s3_key = None
+                    if not video.transcript_s3_key and video.formatted_transcript:
+                        try:
+                            # Create temporary file for upload
+                            temp_transcript_path = os.path.join(output_path, f"{video.id}_formatted_transcript.txt")
+                            with open(temp_transcript_path, 'w', encoding='utf-8') as f:
+                                f.write(video.formatted_transcript)
+                            
+                            # Upload to S3
+                            transcript_s3_key = f"youtube_transcripts/{video.id}_formatted.txt"
+                            logger.info(f"Uploading formatted transcript to S3: {transcript_s3_key}")
+                            s3_upload_file(temp_transcript_path, transcript_s3_key, content_type="text/plain")
+                            
+                            # Clean up temporary file
+                            os.remove(temp_transcript_path)
+                            logger.info(f"Deleted temporary transcript file: {temp_transcript_path}")
+                            
+                        except Exception as transcript_error:
+                            logger.error(f"Failed to upload transcript for video {video.id}: {transcript_error}")
+                    
+                    # Update database
+                    video.s3_key = s3_key
+                    if thumb_key:
+                        video.thumb_key = thumb_key
+                    if transcript_s3_key:
+                        video.transcript_s3_key = transcript_s3_key
+                    video.download_path = None
+                    migrated_count += 1
+                    
+                    # Delete local file
+                    os.remove(video.download_path)
+                    logger.info(f"Successfully migrated and deleted local file for video {video.id}")
+                    
+                except Exception as e:
+                    logger.error(f"Failed to migrate video {video.id}: {e}")
+        
+        db.commit()
+        logger.info(f"Migration completed: {migrated_count} videos migrated to S3")
+        
+    except Exception as e:
+        logger.error(f"Migration failed: {e}")
+    finally:
+        db.close()
+
 def download_video_background(video_id: str, url: str):
-    """Background function to download video"""
+    """Background function to download video and upload to S3"""
     db = SessionLocal()
     try:
         status = {
@@ -279,13 +429,67 @@ def download_video_background(video_id: str, url: str):
         video_path = download_video(url)
         
         if video_path and os.path.exists(video_path):
-            status = {
-                "status": "completed",
-                "message": "Video download complete", 
-                "path": video_path
-            }
+            # Upload to S3 if configured
+            s3_key = None
+            if s3_client and AWS_S3_BUCKET:
+                try:
+                    # Generate S3 key for the video
+                    s3_key = f"youtube_videos/{video_id}.mp4"
+                    
+                    # Upload to S3
+                    logger.info(f"Uploading video to S3: {s3_key}")
+                    s3_upload_file(video_path, s3_key, content_type="video/mp4")
+                    
+                    # Generate and upload thumbnail
+                    thumb_key = None
+                    thumb_path = os.path.join(frames_path, f"{video_id}_thumb.jpg")
+                    if generate_thumbnail(video_path, thumb_path, ts_seconds=1.0):
+                        thumb_key = f"youtube_thumbnails/{video_id}.jpg"
+                        logger.info(f"Uploading thumbnail to S3: {thumb_key}")
+                        s3_upload_file(thumb_path, thumb_key, content_type="image/jpeg")
+                        # Clean up local thumbnail
+                        os.remove(thumb_path)
+                        logger.info(f"Deleted local thumbnail: {thumb_path}")
+                    
+                    # Update database with S3 keys
+                    video = db.query(Video).filter(Video.id == video_id).first()
+                    if video:
+                        video.s3_key = s3_key
+                        video.thumb_key = thumb_key
+                        video.download_path = None  # Clear local path
+                        db.commit()
+                        logger.info(f"Updated database with S3 keys: video={s3_key}, thumbnail={thumb_key}")
+                    
+                    # Delete local file after successful upload
+                    os.remove(video_path)
+                    logger.info(f"Deleted local file: {video_path}")
+                    
+                    status = {
+                        "status": "completed",
+                        "message": "Video and thumbnail uploaded to S3 successfully", 
+                        "path": None,
+                        "s3_key": s3_key,
+                        "thumb_key": thumb_key
+                    }
+                    
+                except Exception as s3_error:
+                    logger.error(f"S3 upload failed for {video_id}: {str(s3_error)}")
+                    # Keep local file if S3 upload fails
+                    status = {
+                        "status": "completed",
+                        "message": "Video download complete (S3 upload failed)", 
+                        "path": video_path
+                    }
+            else:
+                # S3 not configured, keep local file
+                status = {
+                    "status": "completed",
+                    "message": "Video download complete (S3 not configured)", 
+                    "path": video_path
+                }
+            
             update_download_status(db, video_id, status)
-            logger.info(f"Video download completed: {video_path}")
+            logger.info(f"Video processing completed for: {video_id}")
         else:
             status = {
                 "status": "failed",
@@ -322,10 +526,40 @@ def format_transcript_background(video_id: str, json_data: dict):
         
         logger.info(f"Starting background transcript formatting for video: {video_id}")
         
-        # CHANGE THIS LINE: pass video_id to track progress
+        # Create formatted transcript without saving to local file
         formatted_transcript_lines = create_formatted_transcript(json_data, video_id=video_id)
         formatted_transcript_text = ''.join(formatted_transcript_lines)
-        logger.info(f"formatted transcript text {formatted_transcript_text}")
+        logger.info(f"Formatted transcript text length: {len(formatted_transcript_text)}")
+        
+        # Upload formatted transcript to S3 if configured
+        transcript_s3_key = None
+        if s3_client and AWS_S3_BUCKET and formatted_transcript_text:
+            try:
+                # Create temporary file for upload
+                temp_transcript_path = os.path.join(output_path, f"{video_id}_formatted_transcript.txt")
+                with open(temp_transcript_path, 'w', encoding='utf-8') as f:
+                    f.write(formatted_transcript_text)
+                
+                # Upload to S3
+                transcript_s3_key = f"youtube_transcripts/{video_id}_formatted.txt"
+                logger.info(f"Uploading formatted transcript to S3: {transcript_s3_key}")
+                s3_upload_file(temp_transcript_path, transcript_s3_key, content_type="text/plain")
+                
+                # Clean up temporary file
+                os.remove(temp_transcript_path)
+                logger.info(f"Deleted temporary transcript file: {temp_transcript_path}")
+                
+            except Exception as s3_error:
+                logger.error(f"S3 upload failed for formatted transcript {video_id}: {str(s3_error)}")
+        
+        # Update database with formatted transcript and S3 key
+        video = db.query(Video).filter(Video.id == video_id).first()
+        if video:
+            video.formatted_transcript = formatted_transcript_text
+            if transcript_s3_key:
+                video.transcript_s3_key = transcript_s3_key
+            db.commit()
+            logger.info(f"Updated database with formatted transcript and S3 key: {transcript_s3_key}")
         
         # Get current status to preserve progress info
         current_status = get_formatting_status(db, video_id)
@@ -336,7 +570,8 @@ def format_transcript_background(video_id: str, json_data: dict):
             "error": None,
             "progress": 100,
             "total_chunks": current_status.get("total_chunks", 0),
-            "current_chunk": current_status.get("total_chunks", 0)
+            "current_chunk": current_status.get("total_chunks", 0),
+            "transcript_s3_key": transcript_s3_key
         }
         update_formatting_status(db, video_id, status)
         logger.info(f"Transcript formatting completed for video: {video_id}")
@@ -396,11 +631,35 @@ def format_uploaded_transcript_background(video_id: str, transcript_text: str, t
         formatted_transcript_text = ''.join(formatted_transcript_lines)
         logger.info(f"Formatted transcript text length: {len(formatted_transcript_text)}")
         
-        # Update video record with formatted transcript
+        # Upload formatted transcript to S3 if configured
+        transcript_s3_key = None
+        if s3_client and AWS_S3_BUCKET and formatted_transcript_text:
+            try:
+                # Create temporary file for upload
+                temp_transcript_path = os.path.join(output_path, f"{video_id}_formatted_transcript.txt")
+                with open(temp_transcript_path, 'w', encoding='utf-8') as f:
+                    f.write(formatted_transcript_text)
+                
+                # Upload to S3
+                transcript_s3_key = f"uploaded_transcripts/{video_id}_formatted.txt"
+                logger.info(f"Uploading formatted transcript to S3: {transcript_s3_key}")
+                s3_upload_file(temp_transcript_path, transcript_s3_key, content_type="text/plain")
+                
+                # Clean up temporary file
+                os.remove(temp_transcript_path)
+                logger.info(f"Deleted temporary transcript file: {temp_transcript_path}")
+                
+            except Exception as s3_error:
+                logger.error(f"S3 upload failed for formatted transcript {video_id}: {str(s3_error)}")
+        
+        # Update video record with formatted transcript and S3 key
         video = db.query(Video).filter(Video.id == video_id).first()
         if video:
             video.formatted_transcript = formatted_transcript_text
+            if transcript_s3_key:
+                video.transcript_s3_key = transcript_s3_key
             db.commit()
+            logger.info(f"Updated database with formatted transcript and S3 key: {transcript_s3_key}")
         
         # Get current status to preserve progress info
         current_status = get_formatting_status(db, video_id)
@@ -411,7 +670,8 @@ def format_uploaded_transcript_background(video_id: str, transcript_text: str, t
             "error": None,
             "progress": 100,
             "total_chunks": current_status.get("total_chunks", 0),
-            "current_chunk": current_status.get("total_chunks", 0)
+            "current_chunk": current_status.get("total_chunks", 0),
+            "transcript_s3_key": transcript_s3_key
         }
         # Update formatting status directly
         video.formatting_status = status
@@ -937,18 +1197,21 @@ async def get_youtube_info(request: YouTubeRequest, db: Session = Depends(get_db
     try:
         title = await get_video_title(video_id)
         
-        # Download video using yt-dlp (works great on DigitalOcean)
+        # Check if video is already available (local or S3)
         video_path = get_downloaded_video_path(db, video_id)
         if video_path:
-            download_message = f"Video already downloaded: {video_path}"
+            if video_path.startswith('http'):
+                download_message = "Video available in cloud storage"
+            else:
+                download_message = f"Video available locally: {video_path}"
         else:
             status = get_download_status(db, video_id)
             if status["status"] != "not_found":
                 download_message = f"Download status: {status['status']} - {status['message']}"
             else:
-                # Start background download
+                # Start background download and S3 upload
                 download_executor.submit(download_video_background, video_id, url)
-                download_message = "Video download started in background"
+                download_message = "Video download, thumbnail generation, and cloud upload started in background"
             
         # Get transcript and store in DB and cache
         print("Downloading transcript for video ID:", video_id)
@@ -1004,6 +1267,31 @@ async def get_youtube_info(request: YouTubeRequest, db: Session = Depends(get_db
             else:
                 formatting_message = "No JSON data available for formatting"
        
+        # Get S3 URLs if available
+        video_url = None
+        thumbnail_url = None
+        formatted_transcript_url = None
+        
+        video_record = db.query(Video).filter(Video.id == video_id).first()
+        if video_record:
+            if video_record.s3_key and s3_client and AWS_S3_BUCKET:
+                try:
+                    video_url = s3_presign_url(video_record.s3_key, expires_in=3600)
+                except Exception as e:
+                    logger.error(f"Failed to generate video presigned URL: {e}")
+            
+            if video_record.thumb_key and s3_client and AWS_S3_BUCKET:
+                try:
+                    thumbnail_url = s3_presign_url(video_record.thumb_key, expires_in=3600)
+                except Exception as e:
+                    logger.error(f"Failed to generate thumbnail presigned URL: {e}")
+            
+            if video_record.transcript_s3_key and s3_client and AWS_S3_BUCKET:
+                try:
+                    formatted_transcript_url = s3_presign_url(video_record.transcript_s3_key, expires_in=3600)
+                except Exception as e:
+                    logger.error(f"Failed to generate transcript presigned URL: {e}")
+        
         logger.info(f"Video info: ID={video_id}, Title={title}")
         
         print(f"--------------Video title: {title}----------")
@@ -1013,7 +1301,11 @@ async def get_youtube_info(request: YouTubeRequest, db: Session = Depends(get_db
             "url": url,
             "transcript": transcript_data,
             "embed_url": f"https://www.youtube.com/embed/{video_id}?enablejsapi=1",
-            "download_status": download_message
+            "download_status": download_message,
+            "formatting_status": formatting_message,
+            "video_url": video_url,
+            "thumbnail_url": thumbnail_url,
+            "formatted_transcript_url": formatted_transcript_url
         }
         
     except Exception as e:
@@ -1407,10 +1699,15 @@ async def generate_quiz(request: QuizRequest, db: Session = Depends(get_db)):
 # Optional: Serve video files directly
 @app.get("/api/videos/{video_id}")
 async def serve_video(video_id: str, db: Session = Depends(get_db)):
-    """Serve downloaded video files"""
+    """Serve downloaded video files from local storage or redirect to S3"""
     video_path = get_downloaded_video_path(db, video_id)
     if video_path:
-        return FileResponse(video_path, media_type="video/mp4")
+        if video_path.startswith('http'):
+            # Redirect to S3 presigned URL
+            return RedirectResponse(url=video_path)
+        else:
+            # Serve local file
+            return FileResponse(video_path, media_type="video/mp4")
     
     raise HTTPException(status_code=404, detail="Video not found")
 
@@ -1478,6 +1775,26 @@ def move_video(req: MoveVideoRequest, db: Session = Depends(get_db)):
 
 
 #ADD THE DEBUG ENDPOINT HERE:
+@app.post("/api/admin/cleanup-local-videos")
+async def cleanup_local_videos_endpoint():
+    """Admin endpoint to clean up local video files that have been uploaded to S3"""
+    try:
+        cleanup_local_videos()
+        return {"success": True, "message": "Local video cleanup completed"}
+    except Exception as e:
+        logger.error(f"Cleanup endpoint failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/admin/migrate-local-videos-to-s3")
+async def migrate_local_videos_to_s3_endpoint():
+    """Admin endpoint to migrate existing local videos to S3"""
+    try:
+        migrate_local_videos_to_s3()
+        return {"success": True, "message": "Local videos migration to S3 completed"}
+    except Exception as e:
+        logger.error(f"Migration endpoint failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/debug/transcript-raw/{video_id}")
 async def debug_transcript_raw(video_id: str):
     """Debug endpoint to see raw transcript API response"""
