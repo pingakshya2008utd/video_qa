@@ -1,8 +1,8 @@
 // utils.js - Shared utilities and helpers
 import React from 'react';
 
-export const API_URL = 'https://7de5d1a559ab.ngrok-free.app';
-//export const API_URL = 'http://localhost:8000';
+// export const API_URL = 'https://7de5d1a559ab.ngrok-free.app';
+export const API_URL = 'http://localhost:8000';
 
 export const saveToLocalStorage = (key, data) => {
   try {

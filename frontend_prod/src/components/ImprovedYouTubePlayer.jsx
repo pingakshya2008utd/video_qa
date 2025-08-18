@@ -8,13 +8,16 @@ import TranscriptComponent from './TranscriptComponent';
 import ChatBoxComponent from './ChatBoxComponent';
 import QuizPanel from './QuizPanel';
 import { API_URL, saveToLocalStorage, loadFromLocalStorage, SimpleSpinner } from './utils.jsx';
+import { useAuth } from '../context/AuthContext';
+import UserVideoLibrary from './UserVideoLibrary.jsx';
 
 const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
+  const { currentUser } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentVideo, setCurrentVideo] = useState(() => {
-    return loadFromLocalStorage('currentVideo', { title: '', source: '', videoId: '' });
+    return loadFromLocalStorage('currentVideo', { title: '', source: '', videoId: '', sourceType: 'youtube', videoUrl: '' });
   });
   const [transcript, setTranscript] = useState(() => {
     return loadFromLocalStorage('transcript', '');
@@ -66,7 +69,8 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
       let response;
       try {
         response = await axios.post(`${API_URL}/api/youtube/info`, {
-          url: youtubeUrl
+          url: youtubeUrl,
+          user_id: currentUser?.uid || null
         }, {
           timeout: 60000,
           headers: {
@@ -79,7 +83,8 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
           console.log("Network changed, retrying...");
           await new Promise(resolve => setTimeout(resolve, 1000));
           response = await axios.post(`${API_URL}/api/youtube/info`, {
-            url: youtubeUrl
+            url: youtubeUrl,
+            user_id: currentUser?.uid || null
           }, {
             headers: {
               'Content-Type': 'application/json',
@@ -100,7 +105,9 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
       setCurrentVideo({
         title: response.data.title || "YouTube Video", 
         source: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=https://vidyaai.co&controls=0`,
-        videoId: videoId
+        videoId: videoId,
+        sourceType: 'youtube',
+        videoUrl: ''
       });
 
       const newUrl = new URL(window.location);
@@ -117,6 +124,38 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleSelectUploaded = (item) => {
+    setYoutubeUrl('');
+    setTranscript('');
+    setChatMessages([]);
+    setIsQuizOpen(false);
+    setSystemMessages([]);
+    const base = {
+      title: item.title || 'Uploaded Video',
+      videoId: item.video_id,
+      source: '',
+      sourceType: 'uploaded',
+      videoUrl: item.video_url
+    };
+    setCurrentVideo(base);
+    // Fetch transcript and refreshed URLs
+    axios.get(`${API_URL}/api/user-videos/info`, {
+      params: { video_id: item.video_id },
+      headers: { 'ngrok-skip-browser-warning': 'true' }
+    }).then((resp) => {
+      if (resp.data) {
+        setTranscript(resp.data.transcript || '');
+        setCurrentVideo((prev) => ({
+          ...prev,
+          title: resp.data.title || prev.title,
+          videoUrl: resp.data.video_url || prev.videoUrl
+        }));
+      }
+    }).catch((e) => {
+      console.warn('Failed to fetch uploaded video info', e);
+    });
   };
 
   const handlePlayerReady = (playerInstance) => {
@@ -248,6 +287,8 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
         </div>
       </div>
       
+      <UserVideoLibrary onSelect={handleSelectUploaded} />
+
       <form onSubmit={handleYoutubeSubmit} className="mb-8">
         <div className="relative flex flex-col md:flex-row md:items-center gap-2">
           <div className="relative flex-grow">
@@ -288,7 +329,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
         {currentVideo.title || "Enter a YouTube URL to get started"}
       </h2>
       
-      {currentVideo.videoId && (
+      {currentVideo.videoId && currentVideo.sourceType === 'youtube' && (
         <YoutubeDownloader
           videoId={currentVideo.videoId}
           videoTitle={currentVideo.title}

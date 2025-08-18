@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const HomePage = ({ onNavigateToChat, onNavigateToTranslate }) => {
+const HomePage = ({ onNavigateToChat, onNavigateToTranslate, onNavigateToGallery }) => {
   const { currentUser, logout } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -36,6 +36,14 @@ const HomePage = ({ onNavigateToChat, onNavigateToTranslate }) => {
       action: "Start Video Chat",
       onClick: onNavigateToChat,
       gradient: "from-blue-500 to-cyan-500"
+    },
+    {
+      icon: Video,
+      title: "Gallery",
+      description: "Organize your uploaded and YouTube videos into folders. Drag and drop to move items within each section.",
+      action: "Open Gallery",
+      onClick: onNavigateToGallery,
+      gradient: "from-indigo-500 to-purple-500"
     },
     {
       icon: Brain,

@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import AuthForm from './components/AuthForm';
 import HomePage from './components/HomePage';
 import ImprovedYoutubePlayer from './components/ImprovedYouTubePlayer'; // Fixed import
+import Gallery from './components/Gallery.jsx';
 import ProtectedRoute from './components/ProtectedRoute';
 import './App.css';
 
@@ -36,6 +37,7 @@ try {
 const getInitialPage = () => {
   const path = window.location.pathname;
   if (path === '/chat') return 'chat';
+  if (path === '/gallery') return 'gallery';
   if (path === '/translate') return 'translate';
   return 'home';
 };
@@ -61,6 +63,11 @@ const AppContent = () => {
   const handleNavigateToTranslate = () => {
     setCurrentPage('translate');
     window.history.pushState({ page: 'translate' }, '', '/translate');
+  };
+
+  const handleNavigateToGallery = () => {
+    setCurrentPage('gallery');
+    window.history.pushState({ page: 'gallery' }, '', '/gallery');
   };
 
   // Handle browser back/forward buttons
@@ -95,6 +102,7 @@ const AppContent = () => {
           <HomePage 
             onNavigateToChat={handleNavigateToChat}
             onNavigateToTranslate={handleNavigateToTranslate}
+            onNavigateToGallery={handleNavigateToGallery}
           />
         );
       case 'chat':
@@ -105,6 +113,25 @@ const AppContent = () => {
             onNavigateToTranslate={handleNavigateToTranslate}
         />
         </ProtectedRoute>
+        );
+      case 'gallery':
+        return (
+          <ProtectedRoute>
+            <div className="min-h-screen bg-gray-950 p-6">
+              <div className="max-w-7xl mx-auto space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-white text-2xl font-bold">My Gallery</h2>
+                  <button
+                    onClick={handleNavigateToHome}
+                    className="px-3 py-2 bg-gray-800 hover:bg-gray-700 text-white rounded-lg text-sm"
+                  >
+                    Home
+                  </button>
+                </div>
+                <Gallery />
+              </div>
+            </div>
+          </ProtectedRoute>
         );
       case 'translate':
         return (
