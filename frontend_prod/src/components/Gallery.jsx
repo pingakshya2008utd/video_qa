@@ -63,6 +63,20 @@ const Gallery = ({ onNavigateToChat }) => {
     }
   };
 
+  const getThumbnailUrl = async (thumbKey) => {
+    if (!thumbKey) return null;
+    try {
+      const response = await axios.get(`${API_URL}/api/storage/presign`, {
+        params: { key: thumbKey, expires_in: 3600 },
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
+      return response.data.url;
+    } catch (error) {
+      console.error('Failed to get thumbnail URL:', error);
+      return null;
+    }
+  };
+
   const fetchVideos = async () => {
     if (!userId) return;
     setIsLoading(true);
@@ -72,7 +86,19 @@ const Gallery = ({ onNavigateToChat }) => {
         params: { user_id: userId, source_type: section, folder_id: currentFolderId || undefined },
         headers: { 'ngrok-skip-browser-warning': 'true' }
       });
-      setVideos(resp.data || []);
+      
+      // Get thumbnail URLs for videos that have thumb_key
+      const videosWithThumbnails = await Promise.all(
+        (resp.data || []).map(async (video) => {
+          if (video.thumb_key) {
+            const thumbnailUrl = await getThumbnailUrl(video.thumb_key);
+            return { ...video, thumbnailUrl };
+          }
+          return video;
+        })
+      );
+      
+      setVideos(videosWithThumbnails);
     } catch (e) {
       console.error(e);
       setError(e.response?.data?.detail || e.message || 'Failed to load videos');
@@ -250,7 +276,20 @@ const Gallery = ({ onNavigateToChat }) => {
             title={v.title}
           >
             <div className="aspect-video bg-gray-900 overflow-hidden flex items-center justify-center text-gray-600 text-sm relative">
-              {section === 'uploaded' ? 'Uploaded' : 'YouTube'}
+              {v.thumbnailUrl ? (
+                <img 
+                  src={v.thumbnailUrl} 
+                  alt={v.title || 'Video thumbnail'} 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
+                />
+              ) : null}
+              <div className={`absolute inset-0 flex items-center justify-center ${v.thumbnailUrl ? 'hidden' : 'flex'}`}>
+                {section === 'uploaded' ? 'Uploaded' : 'YouTube'}
+              </div>
               {/* Chat button overlay */}
               <button
                 onClick={(e) => {

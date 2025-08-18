@@ -1,7 +1,7 @@
 // ImprovedYoutubePlayer.jsx - Main component with Quiz integration
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Youtube, Menu, Home, MessageSquare, Globe } from 'lucide-react';
+import { Youtube, Menu, Home, MessageSquare, Globe, Upload } from 'lucide-react';
 import YoutubeDownloader from './YoutubeDownloader';
 import PlayerComponent from './PlayerComponent';
 import TranscriptComponent from './TranscriptComponent';
@@ -32,20 +32,29 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
   // Quiz state
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [systemMessages, setSystemMessages] = useState([]);
+  const [isUploadCompleting, setIsUploadCompleting] = useState(false);
+  const [showVideoUploader, setShowVideoUploader] = useState(true);
   
   const menuRef = useRef(null);
 
   // Load selected video from gallery
   useEffect(() => {
-    if (selectedVideo && selectedVideo.videoId && selectedVideo.videoId !== currentVideo.videoId) {
+    if (selectedVideo && selectedVideo.videoId && selectedVideo.videoId !== currentVideo.videoId && !isUploadCompleting) {
       loadSelectedVideo(selectedVideo);
     }
-  }, [selectedVideo, currentVideo.videoId]);
+  }, [selectedVideo, isUploadCompleting]); // Add isUploadCompleting to prevent interference during upload
 
   const loadSelectedVideo = async (videoData) => {
+    console.log("loadSelectedVideo called with:", videoData);
     if (!videoData || !videoData.videoId) {
       console.error("Invalid video data provided");
       setErrorMessage("Invalid video data provided");
+      return;
+    }
+
+    // Prevent loading if we're in the middle of an upload completion
+    if (isUploadCompleting) {
+      console.log("Skipping loadSelectedVideo - upload completion in progress");
       return;
     }
 
@@ -55,6 +64,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
     setChatMessages([]);
     setIsQuizOpen(false);
     setSystemMessages([]);
+    setShowVideoUploader(true); // Show uploader when loading selected video
 
     try {
       if (videoData.sourceType === 'youtube') {
@@ -130,6 +140,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
     setIsLoading(true);
     setErrorMessage('');
     setTranscript('');
+    setShowVideoUploader(true); // Show uploader when loading new video
     
     try {
       let videoId = '';
@@ -213,7 +224,9 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
     }
   };
 
-  const handleUploadComplete = async (videoId) => {
+  const handleUploadComplete = useCallback(async (videoId) => {
+    console.log("Upload completion started for video ID:", videoId);
+    setIsUploadCompleting(true);
     setYoutubeUrl('');
     setTranscript('');
     setChatMessages([]);
@@ -228,6 +241,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
       });
 
       if (response.data) {
+        console.log("Upload completion: Setting video data for ID:", videoId);
         setTranscript(response.data.transcript || '');
         setCurrentVideo({
           title: response.data.title || 'Uploaded Video',
@@ -236,12 +250,25 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
           sourceType: 'uploaded',
           videoUrl: response.data.video_url
         });
+        
+        // Update URL to reflect the uploaded video
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('v', videoId);
+        window.history.replaceState({}, '', newUrl);
       }
     } catch (e) {
       console.warn('Failed to fetch uploaded video info', e);
       setErrorMessage('Upload completed but failed to load video details');
+    } finally {
+      console.log("Upload completion finished for video ID:", videoId);
+      setIsUploadCompleting(false);
     }
-  };
+  }, []);
+
+  const handleUploadSuccess = useCallback(() => {
+    console.log("Upload successful, hiding VideoUploader");
+    setShowVideoUploader(false);
+  }, []);
 
   const handlePlayerReady = (playerInstance) => {
     setPlayer(playerInstance);
@@ -305,16 +332,17 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
     saveToLocalStorage('chatMessages', chatMessages);
   }, [chatMessages]);
 
-  // Handle URL parameters
+  // Handle URL parameters - only on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const videoIdFromUrl = urlParams.get('v');
     
     // Only handle URL parameters if no selectedVideo is provided and no video is currently loaded
+    // and we're not in the middle of an upload process
     if (videoIdFromUrl && !currentVideo.videoId && !youtubeUrl && !selectedVideo) {
       setYoutubeUrl(`https://www.youtube.com/watch?v=${videoIdFromUrl}`);
     }
-  }, [currentVideo.videoId, youtubeUrl, selectedVideo]);
+  }, []); // Empty dependency array - only run once on mount
   
   return (
     <div className="w-full min-h-screen px-6 py-8 bg-gray-950">
@@ -408,9 +436,23 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
               'Load Video'
             )}
           </button>
-          <div className="relative">
-            <VideoUploader onUploadComplete={handleUploadComplete} />
-          </div>
+          {showVideoUploader ? (
+            <div className="relative">
+              <VideoUploader 
+                onUploadComplete={handleUploadComplete} 
+                onUploadSuccess={handleUploadSuccess}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowVideoUploader(true)}
+              className="px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 shadow-lg flex items-center justify-center"
+              title="Upload another video"
+            >
+              <Upload size={20} className="mr-2" />
+              <span>Upload Another Video</span>
+            </button>
+          )}
         </div>
         {errorMessage && (
           <div className="mt-3 text-red-400 text-sm bg-red-900 bg-opacity-30 p-3 rounded-lg">
