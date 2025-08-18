@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { FolderPlus, Folder as FolderIcon, ArrowLeft, Plus, RefreshCw } from 'lucide-react';
+import { FolderPlus, Folder as FolderIcon, ArrowLeft, Plus, RefreshCw, MessageSquare } from 'lucide-react';
 import { API_URL } from './utils.jsx';
 import { useAuth } from '../context/AuthContext';
 
@@ -20,7 +20,7 @@ const SectionTabs = ({ section, setSection }) => {
   );
 };
 
-const Gallery = () => {
+const Gallery = ({ onNavigateToChat }) => {
   const { currentUser } = useAuth();
   const userId = currentUser?.uid || '';
   const [section, setSection] = useState('uploaded');
@@ -31,6 +31,7 @@ const Gallery = () => {
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [chatLoading, setChatLoading] = useState(null);
 
   const folderMap = useMemo(() => {
     const map = new Map();
@@ -136,6 +137,27 @@ const Gallery = () => {
 
   const allowDrop = (e) => e.preventDefault();
 
+  const handleVideoChat = (video) => {
+    setChatLoading(video.id);
+    
+    // Prepare video data for chat interface
+    const videoData = {
+      title: video.title || 'Untitled',
+      videoId: video.id,
+      sourceType: video.source_type,
+      videoUrl: video.video_url || '',
+      source: video.source_type === 'youtube' ? `https://www.youtube.com/embed/${video.id}?enablejsapi=1&origin=https://vidyaai.co&controls=0` : ''
+    };
+    
+    // Navigate to chat with video data
+    if (onNavigateToChat) {
+      onNavigateToChat(videoData);
+    }
+    
+    // Reset loading state after a short delay
+    setTimeout(() => setChatLoading(null), 1000);
+  };
+
   return (
     <div className="w-full bg-gray-900 border border-gray-800 rounded-2xl p-4">
       <div className="flex items-center justify-between mb-4">
@@ -227,11 +249,40 @@ const Gallery = () => {
             className="group rounded-xl overflow-hidden border border-gray-800 hover:border-gray-700 bg-gray-800 text-left"
             title={v.title}
           >
-            <div className="aspect-video bg-gray-900 overflow-hidden flex items-center justify-center text-gray-600 text-sm">
+            <div className="aspect-video bg-gray-900 overflow-hidden flex items-center justify-center text-gray-600 text-sm relative">
               {section === 'uploaded' ? 'Uploaded' : 'YouTube'}
+              {/* Chat button overlay */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleVideoChat(v);
+                }}
+                disabled={chatLoading === v.id}
+                className="absolute top-2 right-2 p-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 disabled:opacity-50"
+                title="Chat with this video"
+              >
+                {chatLoading === v.id ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                ) : (
+                  <MessageSquare size={16} />
+                )}
+              </button>
             </div>
             <div className="px-2 py-2">
               <div className="text-white text-sm line-clamp-2">{v.title || 'Untitled'}</div>
+              {/* Chat button below title */}
+              <button
+                onClick={() => handleVideoChat(v)}
+                disabled={chatLoading === v.id}
+                className="mt-2 w-full px-2 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-xs flex items-center justify-center gap-1 transition-colors disabled:opacity-50"
+              >
+                {chatLoading === v.id ? (
+                  <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-white"></div>
+                ) : (
+                  <MessageSquare size={12} />
+                )}
+                {chatLoading === v.id ? 'Loading...' : 'Chat'}
+              </button>
             </div>
           </div>
         ))}

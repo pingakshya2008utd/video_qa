@@ -46,27 +46,38 @@ const getInitialPage = () => {
 const AppContent = () => {
   const { currentUser } = useAuth();
   const [currentPage, setCurrentPage] = useState(getInitialPage);
+  const [selectedVideo, setSelectedVideo] = useState(null);
 
   // MOVE ALL HOOKS BEFORE ANY CONDITIONAL LOGIC
 
   // Handle navigation with browser history
   const handleNavigateToHome = () => {
     setCurrentPage('home');
+    setSelectedVideo(null);
     window.history.pushState({ page: 'home' }, '', '/');
   };
   
-  const handleNavigateToChat = () => {
+  const handleNavigateToChat = (videoData = null) => {
     setCurrentPage('chat');
-    window.history.pushState({ page: 'chat' }, '', '/chat');
+    setSelectedVideo(videoData);
+    if (videoData) {
+      // Add video ID to URL for bookmarking
+      const url = videoData.videoId ? `/chat?v=${videoData.videoId}` : '/chat';
+      window.history.pushState({ page: 'chat', videoData }, '', url);
+    } else {
+      window.history.pushState({ page: 'chat' }, '', '/chat');
+    }
   };
   
   const handleNavigateToTranslate = () => {
     setCurrentPage('translate');
+    setSelectedVideo(null);
     window.history.pushState({ page: 'translate' }, '', '/translate');
   };
 
   const handleNavigateToGallery = () => {
     setCurrentPage('gallery');
+    setSelectedVideo(null);
     window.history.pushState({ page: 'gallery' }, '', '/gallery');
   };
 
@@ -74,7 +85,9 @@ const AppContent = () => {
   useEffect(() => {
     const handlePopState = (event) => {
       const page = event.state?.page || getInitialPage();
+      const videoData = event.state?.videoData || null;
       setCurrentPage(page);
+      setSelectedVideo(videoData);
     };
 
     // Set initial history state
@@ -111,6 +124,7 @@ const AppContent = () => {
           <ImprovedYoutubePlayer 
             onNavigateToHome={handleNavigateToHome}
             onNavigateToTranslate={handleNavigateToTranslate}
+            selectedVideo={selectedVideo}
         />
         </ProtectedRoute>
         );
@@ -128,7 +142,7 @@ const AppContent = () => {
                     Home
                   </button>
                 </div>
-                <Gallery />
+                <Gallery onNavigateToChat={handleNavigateToChat} />
               </div>
             </div>
           </ProtectedRoute>

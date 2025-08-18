@@ -11,7 +11,7 @@ import { API_URL, saveToLocalStorage, loadFromLocalStorage, SimpleSpinner } from
 import { useAuth } from '../context/AuthContext';
 import UserVideoLibrary from './UserVideoLibrary.jsx';
 
-const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
+const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, selectedVideo }) => {
   const { currentUser } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -34,6 +34,93 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
   const [systemMessages, setSystemMessages] = useState([]);
   
   const menuRef = useRef(null);
+
+  // Load selected video from gallery
+  useEffect(() => {
+    if (selectedVideo && selectedVideo.videoId && selectedVideo.videoId !== currentVideo.videoId) {
+      loadSelectedVideo(selectedVideo);
+    }
+  }, [selectedVideo, currentVideo.videoId]);
+
+  const loadSelectedVideo = async (videoData) => {
+    if (!videoData || !videoData.videoId) {
+      console.error("Invalid video data provided");
+      setErrorMessage("Invalid video data provided");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+    setTranscript('');
+    setChatMessages([]);
+    setIsQuizOpen(false);
+    setSystemMessages([]);
+
+    try {
+      if (videoData.sourceType === 'youtube') {
+        // For YouTube videos, we need to fetch transcript
+        const response = await axios.post(`${API_URL}/api/youtube/info`, {
+          url: `https://www.youtube.com/watch?v=${videoData.videoId}`,
+          user_id: currentUser?.uid || null
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
+
+        if (response.data.transcript) {
+          setTranscript(response.data.transcript);
+        } else {
+          setTranscript("No transcript available for this video.");
+        }
+
+        setCurrentVideo({
+          title: response.data.title || videoData.title || "YouTube Video",
+          source: videoData.source,
+          videoId: videoData.videoId,
+          sourceType: 'youtube',
+          videoUrl: ''
+        });
+      } else {
+        // For uploaded videos, fetch info from API
+        const response = await axios.get(`${API_URL}/api/user-videos/info`, {
+          params: { video_id: videoData.videoId },
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+
+        if (response.data) {
+          setTranscript(response.data.transcript || '');
+          setCurrentVideo({
+            title: response.data.title || videoData.title || 'Uploaded Video',
+            videoId: videoData.videoId,
+            source: '',
+            sourceType: 'uploaded',
+            videoUrl: response.data.video_url || videoData.videoUrl
+          });
+        } else {
+          setCurrentVideo({
+            title: videoData.title || 'Uploaded Video',
+            videoId: videoData.videoId,
+            source: '',
+            sourceType: 'uploaded',
+            videoUrl: videoData.videoUrl
+          });
+        }
+      }
+
+      // Update URL
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.set('v', videoData.videoId);
+      window.history.replaceState({}, '', newUrl);
+
+    } catch (error) {
+      console.error("Error loading selected video:", error);
+      setErrorMessage(error.response?.data?.detail || error.message || "Failed to load video");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleYoutubeSubmit = async (e) => {
     e.preventDefault();
@@ -225,10 +312,11 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
     const urlParams = new URLSearchParams(window.location.search);
     const videoIdFromUrl = urlParams.get('v');
     
-    if (videoIdFromUrl && !currentVideo.videoId && !youtubeUrl) {
+    // Only handle URL parameters if no selectedVideo is provided and no video is currently loaded
+    if (videoIdFromUrl && !currentVideo.videoId && !youtubeUrl && !selectedVideo) {
       setYoutubeUrl(`https://www.youtube.com/watch?v=${videoIdFromUrl}`);
     }
-  }, []);
+  }, [currentVideo.videoId, youtubeUrl, selectedVideo]);
   
   return (
     <div className="w-full min-h-screen px-6 py-8 bg-gray-950">
@@ -243,7 +331,14 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
               height: '50px'
             }}
           />
-          <h1 className="text-3xl font-bold text-white">Chat with My Video</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Chat with My Video</h1>
+            {selectedVideo && (
+              <p className="text-sm text-indigo-400 mt-1">
+                Video loaded from gallery: {selectedVideo.title}
+              </p>
+            )}
+          </div>
         </div>
         
         <div className="relative" ref={menuRef}>
