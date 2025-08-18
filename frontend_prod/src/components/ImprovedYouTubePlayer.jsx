@@ -9,7 +9,7 @@ import ChatBoxComponent from './ChatBoxComponent';
 import QuizPanel from './QuizPanel';
 import { API_URL, saveToLocalStorage, loadFromLocalStorage, SimpleSpinner } from './utils.jsx';
 import { useAuth } from '../context/AuthContext';
-import UserVideoLibrary from './UserVideoLibrary.jsx';
+import VideoUploader from './VideoUploader.jsx';
 
 const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, selectedVideo }) => {
   const { currentUser } = useAuth();
@@ -213,36 +213,34 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
     }
   };
 
-  const handleSelectUploaded = (item) => {
+  const handleUploadComplete = async (videoId) => {
     setYoutubeUrl('');
     setTranscript('');
     setChatMessages([]);
     setIsQuizOpen(false);
     setSystemMessages([]);
-    const base = {
-      title: item.title || 'Uploaded Video',
-      videoId: item.video_id,
-      source: '',
-      sourceType: 'uploaded',
-      videoUrl: item.video_url
-    };
-    setCurrentVideo(base);
-    // Fetch transcript and refreshed URLs
-    axios.get(`${API_URL}/api/user-videos/info`, {
-      params: { video_id: item.video_id },
-      headers: { 'ngrok-skip-browser-warning': 'true' }
-    }).then((resp) => {
-      if (resp.data) {
-        setTranscript(resp.data.transcript || '');
-        setCurrentVideo((prev) => ({
-          ...prev,
-          title: resp.data.title || prev.title,
-          videoUrl: resp.data.video_url || prev.videoUrl
-        }));
+    
+    try {
+      // Fetch video info from API
+      const response = await axios.get(`${API_URL}/api/user-videos/info`, {
+        params: { video_id: videoId },
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
+
+      if (response.data) {
+        setTranscript(response.data.transcript || '');
+        setCurrentVideo({
+          title: response.data.title || 'Uploaded Video',
+          videoId: videoId,
+          source: '',
+          sourceType: 'uploaded',
+          videoUrl: response.data.video_url
+        });
       }
-    }).catch((e) => {
+    } catch (e) {
       console.warn('Failed to fetch uploaded video info', e);
-    });
+      setErrorMessage('Upload completed but failed to load video details');
+    }
   };
 
   const handlePlayerReady = (playerInstance) => {
@@ -382,8 +380,6 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
         </div>
       </div>
       
-      <UserVideoLibrary onSelect={handleSelectUploaded} />
-
       <form onSubmit={handleYoutubeSubmit} className="mb-8">
         <div className="relative flex flex-col md:flex-row md:items-center gap-2">
           <div className="relative flex-grow">
@@ -412,10 +408,13 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
               'Load Video'
             )}
           </button>
+          <div className="relative">
+            <VideoUploader onUploadComplete={handleUploadComplete} />
+          </div>
         </div>
         {errorMessage && (
           <div className="mt-3 text-red-400 text-sm bg-red-900 bg-opacity-30 p-3 rounded-lg">
-            âš ï¸ {errorMessage}
+            ⚠️ {errorMessage}
           </div>
         )}
       </form>
