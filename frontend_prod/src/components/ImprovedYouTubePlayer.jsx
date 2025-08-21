@@ -37,12 +37,21 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
   
   const menuRef = useRef(null);
 
-  // Load selected video from gallery
+  // Load selected video from gallery only when the selection object changes (identity-based)
+  const lastSelectedRef = useRef(null);
   useEffect(() => {
-    if (selectedVideo && selectedVideo.videoId && selectedVideo.videoId !== currentVideo.videoId && !isUploadCompleting) {
-      loadSelectedVideo(selectedVideo);
+    if (!isUploadCompleting) {
+      if (selectedVideo && selectedVideo.videoId) {
+        if (selectedVideo !== lastSelectedRef.current) {
+          lastSelectedRef.current = selectedVideo;
+          loadSelectedVideo(selectedVideo);
+        }
+      } else if (!selectedVideo && lastSelectedRef.current) {
+        // Clear ref when selection cleared
+        lastSelectedRef.current = null;
+      }
     }
-  }, [selectedVideo, isUploadCompleting]); // Add isUploadCompleting to prevent interference during upload
+  }, [selectedVideo, isUploadCompleting]);
 
   const loadSelectedVideo = async (videoData) => {
     console.log("loadSelectedVideo called with:", videoData);
@@ -65,6 +74,10 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
     setIsQuizOpen(false);
     setSystemMessages([]);
     setShowVideoUploader(true); // Show uploader when loading selected video
+
+    // If the same video is selected again, still trigger a refresh to reset chat/transcript
+    // This ensures the UI reloads even when re-selecting the same video from gallery
+    const isSameVideo = currentVideo.videoId === videoData.videoId && currentVideo.sourceType === videoData.sourceType;
 
     try {
       if (videoData.sourceType === 'youtube') {
@@ -123,6 +136,15 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
       const newUrl = new URL(window.location);
       newUrl.searchParams.set('v', videoData.videoId);
       window.history.replaceState({}, '', newUrl);
+
+      // Force refresh effects when same video is re-selected
+      if (isSameVideo) {
+        // Toggle videoId briefly to ensure dependent components reset
+        setCurrentVideo(prev => ({ ...prev, videoId: '' }));
+        setTimeout(() => {
+          setCurrentVideo(prev => ({ ...prev, videoId: videoData.videoId }));
+        }, 0);
+      }
 
     } catch (error) {
       console.error("Error loading selected video:", error);
@@ -255,6 +277,10 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
         const newUrl = new URL(window.location);
         newUrl.searchParams.set('v', videoId);
         window.history.replaceState({}, '', newUrl);
+
+        // Prevent an immediately previous gallery selection from re-triggering after upload
+        // by marking the last selected as this uploaded video
+        lastSelectedRef.current = { videoId, sourceType: 'uploaded' };
       }
     } catch (e) {
       console.warn('Failed to fetch uploaded video info', e);
