@@ -257,7 +257,7 @@ def update_transcript_cache(db: Session, video_id: str, transcript_data: str, js
     db.add(video)
     db.commit()
 
-def get_downloaded_video_path(db: Session, video_id: str) -> str:
+def get_video_path(db: Session, video_id: str) -> str:
     """Get downloaded video path from database or S3"""
     video = db.query(Video).filter(Video.id == video_id).first()
     if not video:
@@ -754,30 +754,6 @@ def generate_thumbnail(input_video_path: str, output_image_path: str, ts_seconds
         except Exception:
             pass
 
-def ensure_local_video_from_s3(video_id: str) -> Optional[str]:
-    """Ensure uploaded video is available locally; download from S3 if needed."""
-    db = SessionLocal()
-    try:
-        video = db.query(Video).filter(Video.id == video_id, Video.source_type == "uploaded").first()
-        if not video or not video.s3_key:
-            return None
-            
-        local_path = os.path.join(video_path, f"{video_id}.mp4")
-        if os.path.exists(local_path):
-            return local_path
-            
-        if not s3_client:
-            return None
-            
-        os.makedirs(video_path, exist_ok=True)
-        s3_client.download_file(AWS_S3_BUCKET, video.s3_key, local_path)
-        return local_path if os.path.exists(local_path) else None
-    except Exception as e:
-        logger.error(f"Failed to download video from S3: {e}")
-        return None
-    finally:
-        db.close()
-
 def transcribe_video_with_openai(local_video_path: str) -> str:
     """Transcribe audio using OpenAI Whisper-1. Returns plain text transcript."""
     try:
@@ -820,7 +796,7 @@ async def upload_cookies(cookie_file: UploadFile = File(...)):
 async def get_download_status_endpoint(video_id: str, db: Session = Depends(get_db)):
     """Check the download status of a video"""
     # Check if video file exists
-    video_path = get_downloaded_video_path(db, video_id)
+    video_path = get_video_path(db, video_id)
     if video_path:
         return {"status": "completed", "message": "Video download complete", "path": video_path}
     
@@ -1198,7 +1174,7 @@ async def get_youtube_info(request: YouTubeRequest, db: Session = Depends(get_db
         title = await get_video_title(video_id)
         
         # Check if video is already available (local or S3)
-        video_path = get_downloaded_video_path(db, video_id)
+        video_path = get_video_path(db, video_id)
         if video_path:
             if video_path.startswith('http'):
                 download_message = "Video available in cloud storage"
@@ -1487,36 +1463,31 @@ async def process_query(query_request: VideoQuery, db: Session = Depends(get_db)
                 raise HTTPException(status_code=400, detail="Timestamp is required for image queries")
             
             # Get video path (uploaded or YouTube)
-            if is_uploaded:
-                video_path_local = ensure_local_video_from_s3(video_id)
-                if not video_path_local:
-                    raise HTTPException(status_code=500, detail="Could not access uploaded video locally for frame extraction")
-            else:
-                video_path_local = get_downloaded_video_path(db, video_id)
-                if not video_path_local:
-                    # Check download status instead of downloading synchronously
-                    download_status_info = get_download_status(db, video_id)
-                    if download_status_info["status"] == "downloading":
-                        # Return a special response instead of raising an exception
-                        return {
-                            "response": "🎬 Something amazing is being loaded! The video is still downloading in the background. Please continue to chat with the video content in the meantime, and try frame-specific questions again in a moment!",
-                            "video_id": video_id,
-                            "timestamp": timestamp,
-                            "query_type": "downloading",
-                            "is_downloading": True
-                        }
-                    elif download_status_info["status"] == "failed":
-                        raise HTTPException(status_code=500, detail=f"Video download failed: {download_status_info['message']}")
-                    else:
-                        # Start download and ask user to wait
-                        download_executor.submit(download_video_background, video_id, url)
-                        return {
-                             "response": "🎬 Something amazing is being loaded! Video download has started in the background. Please continue to chat with the video content in the meantime, and try frame-specific questions again in a moment!",
-                            "video_id": video_id,
-                            "timestamp": timestamp,
-                            "query_type": "downloading",
-                            "is_downloading": True
-                        }
+            video_path_local = get_video_path(db, video_id)
+            if not video_path_local:
+                # Check download status instead of downloading synchronously
+                download_status_info = get_download_status(db, video_id)
+                if download_status_info["status"] == "downloading":
+                    # Return a special response instead of raising an exception
+                    return {
+                        "response": "🎬 Something amazing is being loaded! The video is still downloading in the background. Please continue to chat with the video content in the meantime, and try frame-specific questions again in a moment!",
+                        "video_id": video_id,
+                        "timestamp": timestamp,
+                        "query_type": "downloading",
+                        "is_downloading": True
+                    }
+                elif download_status_info["status"] == "failed":
+                    raise HTTPException(status_code=500, detail=f"Video download failed: {download_status_info['message']}")
+                else:
+                    # Start download and ask user to wait
+                    download_executor.submit(download_video_background, video_id, url)
+                    return {
+                        "response": "🎬 Something amazing is being loaded! Video download has started in the background. Please continue to chat with the video content in the meantime, and try frame-specific questions again in a moment!",
+                        "video_id": video_id,
+                        "timestamp": timestamp,
+                        "query_type": "downloading",
+                        "is_downloading": True
+                    }
             
             # Extract frame using simple method (since youtube_frame_extractor might not exist)
             frame_filename = f"frame_{video_id}_{int(timestamp)}.jpg"
@@ -1700,7 +1671,7 @@ async def generate_quiz(request: QuizRequest, db: Session = Depends(get_db)):
 @app.get("/api/videos/{video_id}")
 async def serve_video(video_id: str, db: Session = Depends(get_db)):
     """Serve downloaded video files from local storage or redirect to S3"""
-    video_path = get_downloaded_video_path(db, video_id)
+    video_path = get_video_path(db, video_id)
     if video_path:
         if video_path.startswith('http'):
             # Redirect to S3 presigned URL
