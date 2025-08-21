@@ -537,23 +537,40 @@ def download_transcript_api(video_id):
     }
 
     url = "https://youtube-transcriptor.p.rapidapi.com/transcript"
-    querystring = {"video_id":video_id,"lang":"en"}
+    querystring = {"video_id":video_id, "lang":"en"}
     response = requests.get(url, headers=headers, params=querystring)
 
     if response.status_code == 200:
         transcript_data = response.json()
-       # print("-----transcript data--------",transcript_data)
+        #print("-----transcript data--------", transcript_data)
         
+        if not "error" in transcript_data:
         # RapidAPI usually returns the transcript in a specific format
-        # Check if we have tr    anscript entries to process
-        if "transcriptionAsText" in transcript_data[0] and transcript_data[0]["transcriptionAsText"]:
-            return transcript_data[0]["transcriptionAsText"], response.json()
+        # Check if we have transcript entries to process
+            if "transcriptionAsText" in transcript_data[0] and transcript_data[0]["transcriptionAsText"]:
+                return transcript_data[0]["transcriptionAsText"], response.json()
+            else:
+                print("No transcript data in the response")
+                raise Exception("No transcript data in the response")
         else:
-            print("No transcript data in the response")
-            return None, {}
+            if "availableLangs" in transcript_data:
+                for lang in transcript_data["availableLangs"]:
+                    if "en" in lang:
+                        querystring["lang"] = lang
+                        response = requests.get(url, headers=headers, params=querystring)
+                        if response.status_code == 200:
+                            transcript_data = response.json()
+                            if "transcriptionAsText" in transcript_data[0] and transcript_data[0]["transcriptionAsText"]:
+                                return transcript_data[0]["transcriptionAsText"], response.json()
+                            else:
+                                print("No transcript data in the response")
+                                raise Exception("No transcript data in the response")
+            print("Error: ", transcript_data["error"])
+            raise Exception("Transcription Error: ", transcript_data["error"])
     else:
         print(f"Error: {response.status_code} - {response.text}")
-        return None, {}
+        raise Exception(f"Transcription Error: {response.status_code} - {response.text}")
+
 
 
 
