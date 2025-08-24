@@ -85,7 +85,14 @@ async def add_security_headers(request, call_next):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://d1xrorvpgizypa.cloudfront.net","https://vidyaai.co","http://localhost:5173", "https://www.vidyaai.co"],  # Your React app URL
+    allow_origins=[
+        "https://d1xrorvpgizypa.cloudfront.net",
+        "https://vidyaai.co",
+        "http://localhost:5173", 
+        "https://www.vidyaai.co",
+        "https://localhost:8000",
+        "https://upload-video.d2krgf8gkzw2h8.amplifyapp.com"
+    ],  # Your React app URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
