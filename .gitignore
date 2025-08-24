@@ -72,7 +72,9 @@ backend_prod/__pycache__/
 backend_prod/alembic/__pycache__/
 backend_prod/alembic/versions/__pycache__/
 
-frontend_prod/node_modules/
 backend_prod/frames/
 backend_prod/formatted_transcript.srt
 backend_prod/formatted_transcript.txt
+
+frontend_prod/node_modules/
+frontend_prod/dist/

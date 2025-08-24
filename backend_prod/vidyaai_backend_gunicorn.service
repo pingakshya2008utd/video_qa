@@ -1,0 +1,14 @@
+#fastapi_gunicorn.service
+
+[Unit]
+Description=Gunicorn instance to serve fastapi application
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/video_qa/backend_prod
+ExecStart=/home/ubuntu/venv/bin/gunicorn -w 4 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8000 youtube_backend:app
+
+[Install]
+WantedBy=multi-user.target

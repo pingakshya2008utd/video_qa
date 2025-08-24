@@ -2,7 +2,7 @@
 import React from 'react';
 
 // export const API_URL = 'https://7de5d1a559ab.ngrok-free.app';
-export const API_URL = 'http://localhost:8000';
+export const API_URL = 'https://api.vidyaai.co';
 // export const API_URL = 'http://vidya-ai-environment.eba-umbehpru.us-east-1.elasticbeanstalk.com';
 
 export const saveToLocalStorage = (key, data) => {
