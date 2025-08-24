@@ -90,8 +90,8 @@ app.add_middleware(
         "https://vidyaai.co",
         "http://localhost:5173", 
         "https://www.vidyaai.co",
-        "https://localhost:8000",
-        "https://upload-video.d2krgf8gkzw2h8.amplifyapp.com"
+        "https://upload-video.d2krgf8gkzw2h8.amplifyapp.com",
+        "https://upload-video.d2krgf8gkzw2h8.amplifyapp.com/*",
     ],  # Your React app URL
     allow_credentials=True,
     allow_methods=["*"],
