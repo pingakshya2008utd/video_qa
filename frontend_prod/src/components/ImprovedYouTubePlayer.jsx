@@ -37,6 +37,19 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
   
   const menuRef = useRef(null);
 
+  // Ensure we always use an absolute URL for uploaded videos
+  const buildAbsoluteVideoUrl = useCallback((maybeUrl) => {
+    if (!maybeUrl) return '';
+    try {
+      // Absolute URL already
+      const u = new URL(maybeUrl);
+      return u.href;
+    } catch (_e) {
+      // Not a full URL; prefix with API base
+      return `${API_URL}${maybeUrl.startsWith('/') ? '' : '/'}${maybeUrl}`;
+    }
+  }, []);
+
   // Load selected video from gallery only when the selection object changes (identity-based)
   const lastSelectedRef = useRef(null);
   useEffect(() => {
@@ -119,7 +132,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
             videoId: videoData.videoId,
             source: '',
             sourceType: 'uploaded',
-            videoUrl: response.data.video_url || videoData.videoUrl
+            videoUrl: buildAbsoluteVideoUrl(response.data.video_url || videoData.videoUrl)
           });
         } else {
           setCurrentVideo({
@@ -270,7 +283,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, select
           videoId: videoId,
           source: '',
           sourceType: 'uploaded',
-          videoUrl: response.data.video_url
+          videoUrl: buildAbsoluteVideoUrl(response.data.video_url)
         });
         
         // Update URL to reflect the uploaded video

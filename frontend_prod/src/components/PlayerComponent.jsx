@@ -219,10 +219,37 @@ const PlayerComponent = ({
       setPlayerReady(false);
       const el = html5Ref.current;
       if (el) {
+        // Force reload of the media element when URL changes
+        try { el.pause(); } catch (e) {}
+        el.removeAttribute('src');
+        el.preload = 'metadata';
+        el.playsInline = true;
+        el.muted = false;
         el.src = currentVideo.videoUrl;
-        el.onloadedmetadata = () => {
+
+        const handleLoadedMetadata = () => {
           setDuration(el.duration || 0);
           if (onPlayerReady) onPlayerReady(null);
+        };
+        const handleCanPlay = () => {
+          // Best-effort autoplay to show first frame; ignore failures
+          el.play().catch(() => {});
+        };
+        const handleError = () => {
+          // Surface a simple log to help debugging network/cors issues
+          // eslint-disable-next-line no-console
+          console.warn('HTML5 video error event fired');
+        };
+
+        el.addEventListener('loadedmetadata', handleLoadedMetadata);
+        el.addEventListener('canplay', handleCanPlay);
+        el.addEventListener('error', handleError);
+        try { el.load(); } catch (e) {}
+
+        return () => {
+          el.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          el.removeEventListener('canplay', handleCanPlay);
+          el.removeEventListener('error', handleError);
         };
       }
     } else if (currentVideo.videoId && !isInitializing) {
@@ -380,7 +407,7 @@ const PlayerComponent = ({
     <div className="w-full">
       <div className="relative overflow-hidden rounded-2xl bg-black shadow-2xl aspect-video">
         {isHtml5 ? (
-          <video ref={html5Ref} className="absolute top-0 left-0 w-full h-full" controls={false} />
+          <video key={currentVideo.videoUrl || 'html5'} ref={html5Ref} className="absolute top-0 left-0 w-full h-full" controls={false} crossOrigin="anonymous" />
         ) : currentVideo.videoId ? (
           <div ref={playerContainerRef} className="absolute top-0 left-0 w-full h-full"></div>
         ) : (
