@@ -1,0 +1,856 @@
+{
+	"info": {
+		"_postman_id": "vidyai-api-collection",
+		"name": "VidyAI Backend API Collection",
+		"description": "Complete API collection for VidyAI backend_prod with all endpoints, examples, and documentation",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "vidyai-backend"
+	},
+	"item": [
+		{
+			"name": "Core Status",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								""
+							]
+						},
+						"description": "Check if the backend service is running"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "YouTube Video Processing",
+			"item": [
+				{
+					"name": "Get YouTube Video Info",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n  \"user_id\": \"user123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/youtube/info",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"youtube",
+								"info"
+							]
+						},
+						"description": "Get video information, transcript, and start background download"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Download Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/youtube/download-info?videoId=dQw4w9WgXcQ",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"youtube",
+								"download-info"
+							],
+							"query": [
+								{
+									"key": "videoId",
+									"value": "dQw4w9WgXcQ"
+								}
+							]
+						},
+						"description": "Get YouTube video download information using yt-dlp or RapidAPI"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Download Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/youtube/download-status/{{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"youtube",
+								"download-status",
+								"{{video_id}}"
+							]
+						},
+						"description": "Check the download status of a video"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Formatting Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/youtube/formatting-status/{{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"youtube",
+								"formatting-status",
+								"{{video_id}}"
+							]
+						},
+						"description": "Check the AI transcript formatting status"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Formatted Transcript",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/youtube/formatted-transcript/{{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"youtube",
+								"formatted-transcript",
+								"{{video_id}}"
+							]
+						},
+						"description": "Get the AI-formatted transcript for a video"
+					},
+					"response": []
+				},
+				{
+					"name": "Upload YouTube Cookies",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "cookie_file",
+									"type": "file",
+									"src": "/path/to/cookies.txt"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/youtube/upload-cookies",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"youtube",
+								"upload-cookies"
+							]
+						},
+						"description": "Upload YouTube cookies for authenticated access"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Video Query & Analysis",
+			"item": [
+				{
+					"name": "Text Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"video_id\": \"dQw4w9WgXcQ\",\n  \"query\": \"What is the main topic discussed in this video?\",\n  \"timestamp\": null,\n  \"is_image_query\": false\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/query/video",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"query",
+								"video"
+							]
+						},
+						"description": "Ask text-based questions about video content"
+					},
+					"response": []
+				},
+				{
+					"name": "Image Query",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"video_id\": \"dQw4w9WgXcQ\",\n  \"query\": \"What objects can you see in this frame?\",\n  \"timestamp\": 120.5,\n  \"is_image_query\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/query/video",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"query",
+								"video"
+							]
+						},
+						"description": "Ask questions about specific video frames at given timestamps"
+					},
+					"response": []
+				},
+				{
+					"name": "Translate Video (Placeholder)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"youtube_url\": \"https://www.youtube.com/watch?v=dQw4w9WgXcQ\",\n  \"source_language\": \"en\",\n  \"target_language\": \"es\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/query/translate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"query",
+								"translate"
+							]
+						},
+						"description": "Translate video content (placeholder endpoint)"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Translation Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/query/translate/{{job_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"query",
+								"translate",
+								"{{job_id}}"
+							]
+						},
+						"description": "Get the status of a translation job"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Quiz Generation",
+			"item": [
+				{
+					"name": "Generate Quiz",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"video_id\": \"dQw4w9WgXcQ\",\n  \"num_questions\": 5,\n  \"difficulty\": \"medium\",\n  \"include_explanations\": true,\n  \"language\": \"en\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/quiz/generate",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"quiz",
+								"generate"
+							]
+						},
+						"description": "Generate interactive quizzes from video content"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "User Video Management",
+			"item": [
+				{
+					"name": "Upload User Video",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "user_id",
+									"value": "user123",
+									"type": "text"
+								},
+								{
+									"key": "file",
+									"type": "file",
+									"src": "/path/to/video.mp4"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/api/user-videos/upload",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user-videos",
+								"upload"
+							]
+						},
+						"description": "Upload user videos to S3 with automatic transcription and progress tracking. Use the upload-status endpoint to monitor progress."
+					},
+					"response": [
+						{
+							"name": "Successful Upload",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "user_id",
+											"value": "user123",
+											"type": "text"
+										},
+										{
+											"key": "file",
+											"type": "file",
+											"src": "/path/to/video.mp4"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/api/user-videos/upload",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user-videos",
+										"upload"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"success\": true,\n  \"video_id\": \"550e8400-e29b-41d4-a716-446655440000\",\n  \"title\": \"sample_video.mp4\",\n  \"video_url\": \"https://s3.amazonaws.com/bucket/presigned-url\",\n  \"thumbnail_url\": \"https://s3.amazonaws.com/bucket/thumbnail-url\",\n  \"has_transcript\": true,\n  \"formatting_status\": \"started\"\n}"
+						}
+					]
+				},
+				{
+					"name": "List User Videos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/user-videos/list?user_id=user123",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user-videos",
+								"list"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "user123"
+								}
+							]
+						},
+						"description": "List user's uploaded videos"
+					},
+					"response": []
+				},
+				{
+					"name": "Check Upload Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/user-videos/upload-status/{{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user-videos",
+								"upload-status",
+								"{{video_id}}"
+							]
+						},
+						"description": "Check the upload progress and status of a user video"
+					},
+					"response": [
+						{
+							"name": "Upload In Progress",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/user-videos/upload-status/{{video_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user-videos",
+										"upload-status",
+										"{{video_id}}"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"processing\",\n  \"message\": \"Generating thumbnail...\",\n  \"progress\": 50,\n  \"current_step\": \"generating_thumbnail\",\n  \"total_steps\": 6\n}"
+						},
+						{
+							"name": "Upload Completed",
+							"originalRequest": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/user-videos/upload-status/{{video_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"user-videos",
+										"upload-status",
+										"{{video_id}}"
+									]
+								}
+							},
+							"status": "OK",
+							"code": 200,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json"
+								}
+							],
+							"cookie": [],
+							"body": "{\n  \"status\": \"completed\",\n  \"message\": \"Upload completed successfully!\",\n  \"progress\": 100,\n  \"current_step\": \"completed\",\n  \"total_steps\": 6\n}"
+						}
+					]
+				},
+				{
+					"name": "Get User Video Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/user-videos/info?video_id={{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"user-videos",
+								"info"
+							],
+							"query": [
+								{
+									"key": "video_id",
+									"value": "{{video_id}}"
+								}
+							]
+						},
+						"description": "Get information about uploaded video"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "File Serving",
+			"item": [
+				{
+					"name": "Serve Video File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/videos/{{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"videos",
+								"{{video_id}}"
+							]
+						},
+						"description": "Serve downloaded video files"
+					},
+					"response": []
+				},
+				{
+					"name": "Serve Frame Image",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/frames/{{frame_filename}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"frames",
+								"{{frame_filename}}"
+							]
+						},
+						"description": "Serve extracted video frames"
+					},
+					"response": []
+				},
+				{
+					"name": "Serve Translated Video",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/translated_videos/{{job_id}}/{{file_name}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"translated_videos",
+								"{{job_id}}",
+								"{{file_name}}"
+							]
+						},
+						"description": "Serve translated video files"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Storage & Cloud",
+			"item": [
+				{
+					"name": "Generate Presigned URL",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/storage/presign?key=user_videos/user123/video.mp4&expires_in=3600",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"storage",
+								"presign"
+							],
+							"query": [
+								{
+									"key": "key",
+									"value": "user_videos/user123/video.mp4"
+								},
+								{
+									"key": "expires_in",
+									"value": "3600"
+								}
+							]
+						},
+						"description": "Generate presigned URLs for S3 objects"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Gallery & Organization",
+			"item": [
+				{
+					"name": "Create Folder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"user_id\": \"user123\",\n  \"name\": \"My Video Folder\",\n  \"parent_id\": null,\n  \"source_type\": \"youtube\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/folders",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"folders"
+							]
+						},
+						"description": "Create video folders for organization"
+					},
+					"response": []
+				},
+				{
+					"name": "List Folders",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/folders?user_id=user123&source_type=youtube",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"folders"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "user123"
+								},
+								{
+									"key": "source_type",
+									"value": "youtube"
+								}
+							]
+						},
+						"description": "List user folders"
+					},
+					"response": []
+				},
+				{
+					"name": "List Gallery Videos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/gallery?user_id=user123&source_type=youtube&folder_id={{folder_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"gallery"
+							],
+							"query": [
+								{
+									"key": "user_id",
+									"value": "user123"
+								},
+								{
+									"key": "source_type",
+									"value": "youtube"
+								},
+								{
+									"key": "folder_id",
+									"value": "{{folder_id}}"
+								}
+							]
+						},
+						"description": "List videos in gallery with folder filtering"
+					},
+					"response": []
+				},
+				{
+					"name": "Move Video to Folder",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"video_id\": \"dQw4w9WgXcQ\",\n  \"target_folder_id\": \"folder-uuid-123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/gallery/move",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"gallery",
+								"move"
+							]
+						},
+						"description": "Move videos between folders"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Debug & Development",
+			"item": [
+				{
+					"name": "Debug Raw Transcript",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/debug/transcript-raw/{{video_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"debug",
+								"transcript-raw",
+								"{{video_id}}"
+							]
+						},
+						"description": "Debug transcript API responses for troubleshooting"
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string",
+			"description": "Base URL for the VidyAI backend API"
+		},
+		{
+			"key": "video_id",
+			"value": "dQw4w9WgXcQ",
+			"type": "string",
+			"description": "Sample YouTube video ID for testing"
+		},
+		{
+			"key": "job_id",
+			"value": "sample-job-uuid",
+			"type": "string",
+			"description": "Sample job ID for background tasks"
+		},
+		{
+			"key": "frame_filename",
+			"value": "frame_dQw4w9WgXcQ_120.jpg",
+			"type": "string",
+			"description": "Sample frame filename"
+		},
+		{
+			"key": "folder_id",
+			"value": "folder-uuid-123",
+			"type": "string",
+			"description": "Sample folder ID"
+		}
+	]
+}

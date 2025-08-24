@@ -1,20 +1,23 @@
 // ImprovedYoutubePlayer.jsx - Main component with Quiz integration
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { Youtube, Menu, Home, MessageSquare, Globe } from 'lucide-react';
+import { Youtube, Menu, Home, MessageSquare, Globe, Upload } from 'lucide-react';
 import YoutubeDownloader from './YoutubeDownloader';
 import PlayerComponent from './PlayerComponent';
 import TranscriptComponent from './TranscriptComponent';
 import ChatBoxComponent from './ChatBoxComponent';
 import QuizPanel from './QuizPanel';
 import { API_URL, saveToLocalStorage, loadFromLocalStorage, SimpleSpinner } from './utils.jsx';
+import { useAuth } from '../context/AuthContext';
+import VideoUploader from './VideoUploader.jsx';
 
-const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
+const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome, selectedVideo }) => {
+  const { currentUser } = useAuth();
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [currentVideo, setCurrentVideo] = useState(() => {
-    return loadFromLocalStorage('currentVideo', { title: '', source: '', videoId: '' });
+    return loadFromLocalStorage('currentVideo', { title: '', source: '', videoId: '', sourceType: 'youtube', videoUrl: '' });
   });
   const [transcript, setTranscript] = useState(() => {
     return loadFromLocalStorage('transcript', '');
@@ -29,8 +32,140 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
   // Quiz state
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [systemMessages, setSystemMessages] = useState([]);
+  const [isUploadCompleting, setIsUploadCompleting] = useState(false);
+  const [showVideoUploader, setShowVideoUploader] = useState(true);
   
   const menuRef = useRef(null);
+
+  // Ensure we always use an absolute URL for uploaded videos
+  const buildAbsoluteVideoUrl = useCallback((maybeUrl) => {
+    if (!maybeUrl) return '';
+    try {
+      // Absolute URL already
+      const u = new URL(maybeUrl);
+      return u.href;
+    } catch (_e) {
+      // Not a full URL; prefix with API base
+      return `${API_URL}${maybeUrl.startsWith('/') ? '' : '/'}${maybeUrl}`;
+    }
+  }, []);
+
+  // Load selected video from gallery only when the selection object changes (identity-based)
+  const lastSelectedRef = useRef(null);
+  useEffect(() => {
+    if (!isUploadCompleting) {
+      if (selectedVideo && selectedVideo.videoId) {
+        if (selectedVideo !== lastSelectedRef.current) {
+          lastSelectedRef.current = selectedVideo;
+          loadSelectedVideo(selectedVideo);
+        }
+      } else if (!selectedVideo && lastSelectedRef.current) {
+        // Clear ref when selection cleared
+        lastSelectedRef.current = null;
+      }
+    }
+  }, [selectedVideo, isUploadCompleting]);
+
+  const loadSelectedVideo = async (videoData) => {
+    console.log("loadSelectedVideo called with:", videoData);
+    if (!videoData || !videoData.videoId) {
+      console.error("Invalid video data provided");
+      setErrorMessage("Invalid video data provided");
+      return;
+    }
+
+    // Prevent loading if we're in the middle of an upload completion
+    if (isUploadCompleting) {
+      console.log("Skipping loadSelectedVideo - upload completion in progress");
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMessage('');
+    setTranscript('');
+    setChatMessages([]);
+    setIsQuizOpen(false);
+    setSystemMessages([]);
+    setShowVideoUploader(true); // Show uploader when loading selected video
+
+    // If the same video is selected again, still trigger a refresh to reset chat/transcript
+    // This ensures the UI reloads even when re-selecting the same video from gallery
+    const isSameVideo = currentVideo.videoId === videoData.videoId && currentVideo.sourceType === videoData.sourceType;
+
+    try {
+      if (videoData.sourceType === 'youtube') {
+        // For YouTube videos, we need to fetch transcript
+        const response = await axios.post(`${API_URL}/api/youtube/info`, {
+          url: `https://www.youtube.com/watch?v=${videoData.videoId}`,
+          user_id: currentUser?.uid || null
+        }, {
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          }
+        });
+
+        if (response.data.transcript) {
+          setTranscript(response.data.transcript);
+        } else {
+          setTranscript("No transcript available for this video.");
+        }
+
+        setCurrentVideo({
+          title: response.data.title || videoData.title || "YouTube Video",
+          source: videoData.source,
+          videoId: videoData.videoId,
+          sourceType: 'youtube',
+          videoUrl: ''
+        });
+      } else {
+        // For uploaded videos, fetch info from API
+        const response = await axios.get(`${API_URL}/api/user-videos/info`, {
+          params: { video_id: videoData.videoId },
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
+
+        if (response.data) {
+          setTranscript(response.data.transcript || '');
+          setCurrentVideo({
+            title: response.data.title || videoData.title || 'Uploaded Video',
+            videoId: videoData.videoId,
+            source: '',
+            sourceType: 'uploaded',
+            videoUrl: buildAbsoluteVideoUrl(response.data.video_url || videoData.videoUrl)
+          });
+        } else {
+          setCurrentVideo({
+            title: videoData.title || 'Uploaded Video',
+            videoId: videoData.videoId,
+            source: '',
+            sourceType: 'uploaded',
+            videoUrl: videoData.videoUrl
+          });
+        }
+      }
+
+      // Update URL
+      const newUrl = new URL(window.location);
+      newUrl.searchParams.set('v', videoData.videoId);
+      window.history.replaceState({}, '', newUrl);
+
+      // Force refresh effects when same video is re-selected
+      if (isSameVideo) {
+        // Toggle videoId briefly to ensure dependent components reset
+        setCurrentVideo(prev => ({ ...prev, videoId: '' }));
+        setTimeout(() => {
+          setCurrentVideo(prev => ({ ...prev, videoId: videoData.videoId }));
+        }, 0);
+      }
+
+    } catch (error) {
+      console.error("Error loading selected video:", error);
+      setErrorMessage(error.response?.data?.detail || error.message || "Failed to load video");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleYoutubeSubmit = async (e) => {
     e.preventDefault();
@@ -40,6 +175,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
     setIsLoading(true);
     setErrorMessage('');
     setTranscript('');
+    setShowVideoUploader(true); // Show uploader when loading new video
     
     try {
       let videoId = '';
@@ -66,7 +202,8 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
       let response;
       try {
         response = await axios.post(`${API_URL}/api/youtube/info`, {
-          url: youtubeUrl
+          url: youtubeUrl,
+          user_id: currentUser?.uid || null
         }, {
           timeout: 60000,
           headers: {
@@ -79,7 +216,8 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
           console.log("Network changed, retrying...");
           await new Promise(resolve => setTimeout(resolve, 1000));
           response = await axios.post(`${API_URL}/api/youtube/info`, {
-            url: youtubeUrl
+            url: youtubeUrl,
+            user_id: currentUser?.uid || null
           }, {
             headers: {
               'Content-Type': 'application/json',
@@ -100,7 +238,9 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
       setCurrentVideo({
         title: response.data.title || "YouTube Video", 
         source: `https://www.youtube.com/embed/${videoId}?enablejsapi=1&origin=https://vidyaai.co&controls=0`,
-        videoId: videoId
+        videoId: videoId,
+        sourceType: 'youtube',
+        videoUrl: ''
       });
 
       const newUrl = new URL(window.location);
@@ -118,6 +258,56 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
       setIsLoading(false);
     }
   };
+
+  const handleUploadComplete = useCallback(async (videoId) => {
+    console.log("Upload completion started for video ID:", videoId);
+    setIsUploadCompleting(true);
+    setYoutubeUrl('');
+    setTranscript('');
+    setChatMessages([]);
+    setIsQuizOpen(false);
+    setSystemMessages([]);
+    
+    try {
+      // Fetch video info from API
+      const response = await axios.get(`${API_URL}/api/user-videos/info`, {
+        params: { video_id: videoId },
+        headers: { 'ngrok-skip-browser-warning': 'true' }
+      });
+
+      if (response.data) {
+        console.log("Upload completion: Setting video data for ID:", videoId);
+        setTranscript(response.data.transcript || '');
+        setCurrentVideo({
+          title: response.data.title || 'Uploaded Video',
+          videoId: videoId,
+          source: '',
+          sourceType: 'uploaded',
+          videoUrl: buildAbsoluteVideoUrl(response.data.video_url)
+        });
+        
+        // Update URL to reflect the uploaded video
+        const newUrl = new URL(window.location);
+        newUrl.searchParams.set('v', videoId);
+        window.history.replaceState({}, '', newUrl);
+
+        // Prevent an immediately previous gallery selection from re-triggering after upload
+        // by marking the last selected as this uploaded video
+        lastSelectedRef.current = { videoId, sourceType: 'uploaded' };
+      }
+    } catch (e) {
+      console.warn('Failed to fetch uploaded video info', e);
+      setErrorMessage('Upload completed but failed to load video details');
+    } finally {
+      console.log("Upload completion finished for video ID:", videoId);
+      setIsUploadCompleting(false);
+    }
+  }, []);
+
+  const handleUploadSuccess = useCallback(() => {
+    console.log("Upload successful, hiding VideoUploader");
+    setShowVideoUploader(false);
+  }, []);
 
   const handlePlayerReady = (playerInstance) => {
     setPlayer(playerInstance);
@@ -181,15 +371,17 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
     saveToLocalStorage('chatMessages', chatMessages);
   }, [chatMessages]);
 
-  // Handle URL parameters
+  // Handle URL parameters - only on initial load
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const videoIdFromUrl = urlParams.get('v');
     
-    if (videoIdFromUrl && !currentVideo.videoId && !youtubeUrl) {
+    // Only handle URL parameters if no selectedVideo is provided and no video is currently loaded
+    // and we're not in the middle of an upload process
+    if (videoIdFromUrl && !currentVideo.videoId && !youtubeUrl && !selectedVideo) {
       setYoutubeUrl(`https://www.youtube.com/watch?v=${videoIdFromUrl}`);
     }
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
   
   return (
     <div className="w-full min-h-screen px-6 py-8 bg-gray-950">
@@ -204,7 +396,14 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
               height: '50px'
             }}
           />
-          <h1 className="text-3xl font-bold text-white">Chat with My Video</h1>
+          <div>
+            <h1 className="text-3xl font-bold text-white">Chat with My Video</h1>
+            {selectedVideo && (
+              <p className="text-sm text-indigo-400 mt-1">
+                Video loaded from gallery: {selectedVideo.title}
+              </p>
+            )}
+          </div>
         </div>
         
         <div className="relative" ref={menuRef}>
@@ -276,10 +475,27 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
               'Load Video'
             )}
           </button>
+          {showVideoUploader ? (
+            <div className="relative">
+              <VideoUploader 
+                onUploadComplete={handleUploadComplete} 
+                onUploadSuccess={handleUploadSuccess}
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowVideoUploader(true)}
+              className="px-6 py-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-200 shadow-lg flex items-center justify-center"
+              title="Upload another video"
+            >
+              <Upload size={20} className="mr-2" />
+              <span>Upload Another Video</span>
+            </button>
+          )}
         </div>
         {errorMessage && (
           <div className="mt-3 text-red-400 text-sm bg-red-900 bg-opacity-30 p-3 rounded-lg">
-            âš ï¸ {errorMessage}
+            ⚠️ {errorMessage}
           </div>
         )}
       </form>
@@ -288,7 +504,7 @@ const ImprovedYoutubePlayer = ({ onNavigateToTranslate, onNavigateToHome }) => {
         {currentVideo.title || "Enter a YouTube URL to get started"}
       </h2>
       
-      {currentVideo.videoId && (
+      {currentVideo.videoId && currentVideo.sourceType === 'youtube' && (
         <YoutubeDownloader
           videoId={currentVideo.videoId}
           videoTitle={currentVideo.title}

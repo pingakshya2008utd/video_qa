@@ -32,7 +32,7 @@ const QuizPanel = ({ isOpen, videoId, onClose, onSystemMessage }) => {
 
       try {
         // Use the same API_URL pattern as the main component
-        const apiUrl = API_URL || 'http://localhost:8000';
+        const apiUrl = API_URL;
         console.log('Making API call to:', `${apiUrl}/api/quiz/generate`);
         
         const resp = await axios.post(`${apiUrl}/api/quiz/generate`, {
